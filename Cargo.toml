@@ -4,6 +4,21 @@ version = "0.1.0"
 authors = ["Nathaniel McCallum <npmccallum@redhat.com>"]
 edition = "2018"
 license = "Apache-2.0"
+homepage = "https://github.com/enarx/sevctl"
+repository = "https://github.com/enarx/sevctl"
+description = "Administrative utility for AMD SEV"
+readme = "README.md"
+keywords = ["amd", "sev"]
+categories = ["os", "os::linux-apis", "parsing", "cryptography", "hardware-support"]
+exclude = [ ".gitignore", ".github/*" ]
+
+[badges]
+# See https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section
+github = { repository = "enarx/sevctl", workflow = "test" }
+#github = { repository = "enarx/sevctl", workflow = "lint" }
+maintenance = { status = "actively-developed" }
+is-it-maintained-issue-resolution = { repository = "enarx/sevctl" }
+is-it-maintained-open-issues = { repository = "enarx/sevctl" }
 
 [dependencies]
 sev = { git = "https://github.com/enarx/sev", features = ["openssl"] }
