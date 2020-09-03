@@ -99,35 +99,50 @@ use ::sev::certs::*;
 use ::sev::firmware::{Firmware, Status};
 use ::sev::Generation;
 
+use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::process::exit;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
+trait UnwrapOrExit<T> {
+    fn unwrap_or_exit(self, context: impl Display) -> T;
+}
+
+impl<T, E: Debug> UnwrapOrExit<T> for Result<T, E> {
+    fn unwrap_or_exit(self, context: impl Display) -> T {
+        self.unwrap_or_else(|err| {
+            eprintln!("{}: {:?}", context, err);
+            exit(1)
+        })
+    }
+}
+
 fn download(rsp: reqwest::Result<reqwest::blocking::Response>, usage: Usage) -> sev::Certificate {
-    let mut rsp = rsp.unwrap_or_else(|err| panic!("unable to contact {} server: {}", usage, err));
+    let mut rsp = rsp.unwrap_or_exit(format!("unable to contact {} server", usage));
 
     if !rsp.status().is_success() {
-        panic!("received failure from {} server: {}", usage, rsp.status());
+        eprintln!("received failure from {} server: {}", usage, rsp.status());
+        exit(1);
     }
 
     let mut buf = Vec::new();
     rsp.copy_to(&mut buf)
-        .unwrap_or_else(|err| panic!("unable to complete {} download: {}", usage, err));
+        .unwrap_or_exit(format!("unable to complete {} download", usage));
 
     sev::Certificate::decode(&mut &buf[..], ())
-        .unwrap_or_else(|err| panic!("unable to parse downloaded {}: {}", usage, err))
+        .unwrap_or_exit(format!("unable to parse downloaded {}", usage))
 }
 
 fn firmware() -> Firmware {
-    Firmware::open().expect("unable to open /dev/sev")
+    Firmware::open().unwrap_or_exit("unable to open /dev/sev")
 }
 
 fn platform_status() -> Status {
     firmware()
         .platform_status()
-        .expect("unable to fetch platform status")
+        .unwrap_or_exit("unable to fetch platform status")
 }
 
 fn chain() -> sev::Chain {
@@ -135,11 +150,11 @@ fn chain() -> sev::Chain {
 
     let mut chain = firmware()
         .pdh_cert_export()
-        .expect("unable to export SEV certificates");
+        .unwrap_or_exit("unable to export SEV certificates");
 
     let id = firmware()
         .get_identifer()
-        .expect("error fetching identifier");
+        .unwrap_or_exit("error fetching identifier");
     let url = format!("{}/{}", CEK_SVC, id);
     chain.cek = download(reqwest::blocking::get(&url), Usage::CEK);
 
@@ -283,7 +298,7 @@ mod reset {
     pub fn cmd(_: &ArgMatches) -> ! {
         firmware()
             .platform_reset()
-            .expect("error resetting platform");
+            .unwrap_or_exit("error resetting platform");
         exit(0)
     }
 }
@@ -343,11 +358,11 @@ mod export {
             chain.encode(&mut out, ()).unwrap();
         }
 
-        let mut file =
-            File::create(matches.value_of("file").unwrap()).expect("unable to create output file");
+        let mut file = File::create(matches.value_of("file").unwrap())
+            .unwrap_or_exit("unable to create output file");
 
         file.write_all(&out.into_inner())
-            .expect("unable to write output file");
+            .unwrap_or_exit("unable to write output file");
 
         exit(0)
     }
@@ -369,9 +384,11 @@ mod verify {
         let mut err = false;
 
         if let Some(filename) = matches.value_of("oca") {
-            let mut file = File::open(filename).expect("unable to open OCA certificate file");
+            let mut file =
+                File::open(filename).unwrap_or_exit("unable to open OCA certificate file");
 
-            schain.oca = sev::Certificate::decode(&mut file, ()).expect("unable to decode OCA");
+            schain.oca =
+                sev::Certificate::decode(&mut file, ()).unwrap_or_exit("unable to decode OCA");
         }
 
         if !quiet {
@@ -428,16 +445,18 @@ mod verify {
         match filename {
             None => chain(),
             Some(f) => {
-                let mut file = File::open(f).expect("unable to open SEV certificate chain file");
+                let mut file =
+                    File::open(f).unwrap_or_exit("unable to open SEV certificate chain file");
 
-                sev::Chain::decode(&mut file, ()).expect("unable to decode chain")
+                sev::Chain::decode(&mut file, ()).unwrap_or_exit("unable to decode chain")
             }
         }
     }
 
     fn ca_chain(filename: &str) -> ca::Chain {
-        let mut file = File::open(&filename).expect("unable to open CA certificate chain file");
-        ca::Chain::decode(&mut file, ()).expect("unable to decode chain")
+        let mut file =
+            File::open(&filename).unwrap_or_exit("unable to open CA certificate chain file");
+        ca::Chain::decode(&mut file, ()).unwrap_or_exit("unable to decode chain")
     }
 }
 
@@ -445,20 +464,21 @@ mod generate {
     use super::*;
 
     pub fn cmd(matches: &ArgMatches) -> ! {
-        let (mut oca, prv) =
-            sev::Certificate::generate(sev::Usage::OCA).expect("unable to generate OCA key pair");
+        let (mut oca, prv) = sev::Certificate::generate(sev::Usage::OCA)
+            .unwrap_or_exit("unable to generate OCA key pair");
         prv.sign(&mut oca).unwrap();
 
         // Write the certificate
         let crt = matches.value_of("cert").unwrap();
-        let mut crt = File::create(crt).expect("unable to create certificate file");
+        let mut crt = File::create(crt).unwrap_or_exit("unable to create certificate file");
         oca.encode(&mut crt, ())
-            .expect("unable to write certificate file");
+            .unwrap_or_exit("unable to write certificate file");
 
         // Write the private key
         let key = matches.value_of("key").unwrap();
-        let mut key = File::create(key).expect("unable to create key file");
-        prv.encode(&mut key, ()).expect("unable to write key file");
+        let mut key = File::create(key).unwrap_or_exit("unable to create key file");
+        prv.encode(&mut key, ())
+            .unwrap_or_exit("unable to write key file");
 
         exit(0)
     }
@@ -519,12 +539,13 @@ mod serve {
         let key = matches.value_of("key").unwrap();
 
         // Load certificate
-        let mut oca = File::open(oca).expect("unable to open certificate file");
-        let oca = sev::Certificate::decode(&mut oca, ()).expect("unable to decode OCA certificate");
+        let mut oca = File::open(oca).unwrap_or_exit("unable to open certificate file");
+        let oca = sev::Certificate::decode(&mut oca, ())
+            .unwrap_or_exit("unable to decode OCA certificate");
 
         // Load private key
-        let mut key = File::open(key).expect("unable to open key file");
-        let key = PrivateKey::decode(&mut key, &oca).expect("unable to read key file");
+        let mut key = File::open(key).unwrap_or_exit("unable to open key file");
+        let key = PrivateKey::decode(&mut key, &oca).unwrap_or_exit("unable to read key file");
 
         // Re-encode the certificate
         let mut enc = Vec::new();
@@ -569,36 +590,42 @@ mod rotate {
             let oca = download(reqwest::blocking::get(url), Usage::OCA);
             (&oca, &oca)
                 .verify()
-                .expect("unable to self-verify OCA certificate");
+                .unwrap_or_exit("unable to self-verify OCA certificate");
 
-            firmware().pek_generate().expect("unable to reset PEK");
+            firmware()
+                .pek_generate()
+                .unwrap_or_exit("unable to reset PEK");
 
-            let csr = firmware().pek_csr().expect("unable to fetch PEK CSR");
+            let csr = firmware()
+                .pek_csr()
+                .unwrap_or_exit("unable to fetch PEK CSR");
 
             let mut buf = Vec::new();
             csr.encode(&mut buf, ())
-                .expect("unable to re-encode PEK CSR");
+                .unwrap_or_exit("unable to re-encode PEK CSR");
 
             let clt = reqwest::blocking::Client::new();
             let pek = download(clt.post(url).body(buf).send(), Usage::PEK);
 
             firmware()
                 .pek_cert_import(&pek, &oca)
-                .expect("unable to import PEK and OCA");
+                .unwrap_or_exit("unable to import PEK and OCA");
         } else if platform_status().flags.contains(Flags::OWNED) {
             eprintln!("not rotating owned system; see --adopt option");
             exit(1);
         } else {
             firmware()
                 .pek_generate()
-                .expect("unable to rotate OCA, PEK and PDH");
+                .unwrap_or_exit("unable to rotate OCA, PEK and PDH");
         }
 
         exit(0)
     }
 
     fn pdh(_: &ArgMatches) -> ! {
-        firmware().pdh_generate().expect("unable to rotate PDH");
+        firmware()
+            .pdh_generate()
+            .unwrap_or_exit("unable to rotate PDH");
         exit(0)
     }
 }
