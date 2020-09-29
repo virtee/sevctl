@@ -45,25 +45,10 @@
 //!
 //! ## rotate
 //!
-//! Rotates all the certificates. If the system is _not_ self-owned, the new certificate will
-//! need to be signed by the old with the `--adopt` option to safely rotate.
-//!
-//! ```console
-//! $ sevctl rotate all
-//! ```
-//!
 //! Rotates the Platform Diffie-Hellman (PDH).
 //!
 //! ```console
-//! $ sevctl rotate pdh
-//! ```
-//!
-//! ## serve
-//!
-//! Runs a server to handle OCA certificate signing requests.
-//!
-//! ```console
-//! $ sevctl serve ~/my-cert ~/my-key
+//! $ sevctl rotate
 //! ```
 //!
 //! ## show
@@ -247,20 +232,6 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("serve")
-                .about("Run a server to handle OCA certificate signing requests")
-                .arg(
-                    Arg::with_name("cert")
-                        .help("OCA certificate input file")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("key")
-                        .help("OCA private key input file")
-                        .required(true),
-                ),
-        )
-        .subcommand(
             SubCommand::with_name("rotate")
                 .about("Rotate certificates and their keys")
                 .subcommand(
@@ -283,7 +254,6 @@ fn main() {
         ("export", Some(m)) => export::cmd(m),
         ("verify", Some(m)) => verify::cmd(m),
         ("generate", Some(m)) => generate::cmd(m),
-        ("serve", Some(m)) => serve::cmd(m),
         ("rotate", Some(m)) => rotate::cmd(m),
         _ => {
             eprintln!("{}", matches.usage());
@@ -484,145 +454,14 @@ mod generate {
     }
 }
 
-mod serve {
-    use super::*;
-    use tiny_http::{Method, Request, Response, Server, StatusCode};
-
-    pub fn cmd(matches: &ArgMatches) -> ! {
-        let (enc, key) = load(matches);
-        let mut buf = vec![0u8; enc.len()];
-
-        let srv = Server::http("0.0.0.0:8000").unwrap();
-        for (i, mut req) in srv.incoming_requests().enumerate() {
-            eprintln!(
-                "{:08}: {} > {} {}",
-                i,
-                req.remote_addr(),
-                req.method(),
-                req.url()
-            );
-
-            if req.url() != "/" {
-                let rsp = Response::empty(StatusCode(404));
-                eprintln!("{:08}: {} < {:03}", i, req.remote_addr(), 404);
-                req.respond(rsp).unwrap();
-                continue;
-            }
-
-            let (code, data) = match req.method() {
-                Method::Get => (200, Some(&enc[..])),
-                Method::Post => match sign(&mut req, &key, &mut buf) {
-                    Ok(_) => (200, Some(&buf[..])),
-                    Err(c) => (c, None),
-                },
-
-                _ => (405, None),
-            };
-
-            if let Some(d) = data {
-                let rdr = &mut &d[..];
-                let rsp = Response::new(StatusCode(200), Vec::new(), rdr, Some(enc.len()), None);
-                eprintln!("{:08}: {} < {:03}", i, req.remote_addr(), 200);
-                req.respond(rsp).unwrap();
-            } else {
-                let rsp = Response::empty(StatusCode(code));
-                eprintln!("{:08}: {} < {:03}", i, req.remote_addr(), code);
-                req.respond(rsp).unwrap();
-            }
-        }
-
-        exit(1)
-    }
-
-    fn load(matches: &ArgMatches) -> (Vec<u8>, PrivateKey<sev::Usage>) {
-        let oca = matches.value_of("cert").unwrap();
-        let key = matches.value_of("key").unwrap();
-
-        // Load certificate
-        let mut oca = File::open(oca).unwrap_or_exit("unable to open certificate file");
-        let oca = sev::Certificate::decode(&mut oca, ())
-            .unwrap_or_exit("unable to decode OCA certificate");
-
-        // Load private key
-        let mut key = File::open(key).unwrap_or_exit("unable to open key file");
-        let key = PrivateKey::decode(&mut key, &oca).unwrap_or_exit("unable to read key file");
-
-        // Re-encode the certificate
-        let mut enc = Vec::new();
-        oca.encode(&mut enc, ()).unwrap();
-
-        (enc, key)
-    }
-
-    fn sign(req: &mut Request, key: &PrivateKey<sev::Usage>, buf: &mut [u8]) -> Result<(), u16> {
-        // Read in the provided PEK CSR
-        if req.body_length() != Some(buf.len()) {
-            return Err(413u16);
-        }
-        req.as_reader()
-            .read_exact(&mut &mut buf[..])
-            .or(Err(500u16))?;
-
-        let mut pek = sev::Certificate::decode(&mut &buf[..], ()).or(Err(400u16))?;
-        key.sign(&mut pek).or(Err(400u16))?;
-        pek.encode(&mut &mut buf[..], ()).or(Err(500u16))?;
-        Ok(())
-    }
-}
-
 mod rotate {
     use super::*;
-    use ::sev::firmware::Flags;
 
-    pub fn cmd(matches: &ArgMatches) -> ! {
-        match matches.subcommand() {
-            ("all", Some(m)) => all(m),
-            ("pdh", Some(m)) => pdh(m),
-            _ => {
-                eprintln!("{}", matches.usage());
-                exit(1);
-            }
-        }
+    pub fn cmd(_: &ArgMatches) -> ! {
+        pdh()
     }
 
-    fn all(matches: &ArgMatches) -> ! {
-        if let Some(url) = matches.value_of("adopt") {
-            let oca = download(reqwest::blocking::get(url), Usage::OCA);
-            (&oca, &oca)
-                .verify()
-                .unwrap_or_exit("unable to self-verify OCA certificate");
-
-            firmware()
-                .pek_generate()
-                .unwrap_or_exit("unable to reset PEK");
-
-            let csr = firmware()
-                .pek_csr()
-                .unwrap_or_exit("unable to fetch PEK CSR");
-
-            let mut buf = Vec::new();
-            csr.encode(&mut buf, ())
-                .unwrap_or_exit("unable to re-encode PEK CSR");
-
-            let clt = reqwest::blocking::Client::new();
-            let pek = download(clt.post(url).body(buf).send(), Usage::PEK);
-
-            firmware()
-                .pek_cert_import(&pek, &oca)
-                .unwrap_or_exit("unable to import PEK and OCA");
-        } else if platform_status().flags.contains(Flags::OWNED) {
-            eprintln!("not rotating owned system; see --adopt option");
-            exit(1);
-        } else {
-            firmware()
-                .pek_generate()
-                .unwrap_or_exit("unable to rotate OCA, PEK and PDH");
-        }
-
-        exit(0)
-    }
-
-    fn pdh(_: &ArgMatches) -> ! {
+    fn pdh() -> ! {
         firmware()
             .pdh_generate()
             .unwrap_or_exit("unable to rotate PDH");

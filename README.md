@@ -50,25 +50,10 @@ $ sevctl reset
 
 ### rotate
 
-Rotates all the certificates. If the system is _not_ self-owned, the new certificate will
-need to be signed by the old with the `--adopt` option to safely rotate.
-
-```console
-$ sevctl rotate all
-```
-
 Rotates the Platform Diffie-Hellman (PDH).
 
 ```console
-$ sevctl rotate pdh
-```
-
-### serve
-
-Runs a server to handle OCA certificate signing requests.
-
-```console
-$ sevctl serve ~/my-cert ~/my-key
+$ sevctl rotate
 ```
 
 ### show
