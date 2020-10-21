@@ -138,7 +138,7 @@ fn chain() -> sev::Chain {
         .unwrap_or_exit("unable to export SEV certificates");
 
     let id = firmware()
-        .get_identifer()
+        .get_identifier()
         .unwrap_or_exit("error fetching identifier");
     let url = format!("{}/{}", CEK_SVC, id);
     chain.cek = download(reqwest::blocking::get(&url), Usage::CEK);
