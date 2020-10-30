@@ -76,7 +76,7 @@
 #![deny(clippy::all)]
 #![deny(missing_docs)]
 
-use clap::ArgMatches;
+use structopt::StructOpt;
 
 use codicon::*;
 
@@ -86,6 +86,7 @@ use ::sev::Generation;
 
 use std::fmt::{Debug, Display};
 use std::fs::File;
+use std::path::PathBuf;
 use std::process::exit;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -102,6 +103,63 @@ impl<T, E: Debug> UnwrapOrExit<T> for Result<T, E> {
             exit(1)
         })
     }
+}
+
+#[derive(StructOpt)]
+#[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV environment")]
+enum Sevctl {
+    #[structopt(about = "Export the SEV or entire certificate chain")]
+    Export {
+        #[structopt(
+            short,
+            long,
+            help = "Export the entire certificate chain? (SEV + CA chain)"
+        )]
+        full: bool,
+
+        #[structopt(parse(from_os_str), help = "Certificate chain output file path")]
+        destination: PathBuf,
+    },
+
+    #[structopt(about = "Generate a new self-signed OCA certificate and key")]
+    Generate {
+        #[structopt(parse(from_os_str), help = "OCA certificate output file path")]
+        cert: PathBuf,
+
+        #[structopt(parse(from_os_str), help = "OCA key output file path")]
+        key: PathBuf,
+    },
+
+    #[structopt(about = "Reset the SEV platform state")]
+    Reset,
+
+    #[structopt(about = "Rotate PDH")]
+    Rotate,
+
+    #[structopt(about = "Display information about the SEV platform")]
+    Show {
+        #[structopt(subcommand)]
+        cmd: show::Show,
+    },
+
+    #[structopt(about = "Verify certificate chain")]
+    Verify {
+        #[structopt(short, long, help = "Don't print anything to the console")]
+        quiet: bool,
+
+        #[structopt(long, parse(from_os_str), help = "Read SEV chain from specified file")]
+        sev: Option<PathBuf>,
+
+        #[structopt(
+            long,
+            parse(from_os_str),
+            help = "Read OCA certificate from specified file"
+        )]
+        oca: Option<PathBuf>,
+
+        #[structopt(long, parse(from_os_str), help = "Read CA chain from specified file")]
+        ca: Option<PathBuf>,
+    },
 }
 
 fn download(rsp: reqwest::Result<reqwest::blocking::Response>, usage: Usage) -> sev::Certificate {
@@ -154,118 +212,25 @@ fn ca_chain_builtin(chain: &sev::Chain) -> ca::Chain {
 }
 
 fn main() {
-    use clap::{App, Arg, SubCommand};
-
-    let matches = App::new("SEV Platform Control")
-        .version(VERSION)
-        .author(AUTHORS.split(';').next().unwrap())
-        .about("Utilities for managing the SEV environment")
-        .subcommand(SubCommand::with_name("reset").about("Resets the SEV platform"))
-        .subcommand(
-            SubCommand::with_name("show")
-                .about("Shows information about the SEV platform")
-                .subcommand(
-                    SubCommand::with_name("version").about("Show the current firmware version"),
-                )
-                .subcommand(
-                    SubCommand::with_name("guests").about("Show the current number of guests"),
-                )
-                .subcommand(
-                    SubCommand::with_name("flags").about("Show the current platform flags"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("export")
-                .about("Export the SEV certificate chain")
-                .arg(
-                    Arg::with_name("file")
-                        .help("SEV certificate chain output file")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("full")
-                        .help("Export the entire certificate chain (SEV+CA)")
-                        .long("full")
-                        .short("f"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("verify")
-                .about("Verify the full SEV/CA certificate chain")
-                .arg(
-                    Arg::with_name("quiet")
-                        .help("Do not print anything to the console")
-                        .long("quiet")
-                        .short("q"),
-                )
-                .arg(
-                    Arg::with_name("sev")
-                        .help("Read SEV chain from the specified file")
-                        .takes_value(true)
-                        .long("sev"),
-                )
-                .arg(
-                    Arg::with_name("oca")
-                        .help("Read OCA from the specified file")
-                        .takes_value(true)
-                        .long("oca"),
-                )
-                .arg(
-                    Arg::with_name("ca")
-                        .help("Read CA chain from the specified file")
-                        .takes_value(true)
-                        .long("ca"),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("generate")
-                .about("Generate a new, self-signed OCA certificate and key")
-                .arg(
-                    Arg::with_name("cert")
-                        .help("OCA certificate output file")
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("key")
-                        .help("OCA private key output file")
-                        .required(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("rotate")
-                .about("Rotate certificates and their keys")
-                .subcommand(
-                    SubCommand::with_name("all")
-                        .about("Rotate the OCA, PEK and PDH certificates")
-                        .arg(
-                            Arg::with_name("adopt")
-                                .help("URL of OCA signing service")
-                                .takes_value(true)
-                                .long("adopt"),
-                        ),
-                )
-                .subcommand(SubCommand::with_name("pdh").about("Rotate the PDH certificate")),
-        )
-        .get_matches();
-
-    match matches.subcommand() {
-        ("reset", Some(m)) => reset::cmd(m),
-        ("show", Some(m)) => show::cmd(m),
-        ("export", Some(m)) => export::cmd(m),
-        ("verify", Some(m)) => verify::cmd(m),
-        ("generate", Some(m)) => generate::cmd(m),
-        ("rotate", Some(m)) => rotate::cmd(m),
-        _ => {
-            eprintln!("{}", matches.usage());
-            exit(1);
-        }
+    match Sevctl::from_args() {
+        Sevctl::Export { full, destination } => export::cmd(full, destination),
+        Sevctl::Generate { cert, key } => generate::cmd(cert, key),
+        Sevctl::Reset => reset::cmd(),
+        Sevctl::Rotate => rotate::cmd(),
+        Sevctl::Show { cmd } => show::cmd(cmd),
+        Sevctl::Verify {
+            quiet,
+            sev,
+            oca,
+            ca,
+        } => verify::cmd(quiet, sev, oca, ca),
     }
 }
 
 mod reset {
     use super::*;
 
-    pub fn cmd(_: &ArgMatches) -> ! {
+    pub fn cmd() -> ! {
         firmware()
             .platform_reset()
             .unwrap_or_exit("error resetting platform");
@@ -277,15 +242,25 @@ mod show {
     use super::*;
     use ::sev::firmware::Flags;
 
-    pub fn cmd(matches: &ArgMatches) -> ! {
+    #[derive(StructOpt)]
+    pub enum Show {
+        #[structopt(about = "Show the current platform flags")]
+        Flags,
+
+        #[structopt(about = "Show the current number of guests")]
+        Guests,
+
+        #[structopt(about = "Show the platform's firmware version")]
+        Version,
+    }
+
+    pub fn cmd(show: Show) -> ! {
         let status = platform_status();
 
-        match matches.subcommand_name() {
-            Some("version") => println!("{}", status.build),
-
-            Some("guests") => println!("{}", status.guests),
-
-            Some("flags") => {
+        match show {
+            Show::Version => println!("{}", status.build),
+            Show::Guests => println!("{}", status.guests),
+            Show::Flags => {
                 for f in [Flags::OWNED, Flags::ENCRYPTED_STATE].iter() {
                     println!(
                         "{}",
@@ -297,11 +272,6 @@ mod show {
                     );
                 }
             }
-
-            _ => {
-                eprintln!("{}", matches.usage());
-                exit(1);
-            }
         }
 
         exit(0)
@@ -312,12 +282,12 @@ mod export {
     use super::*;
     use std::io::Write;
 
-    pub fn cmd(matches: &ArgMatches) -> ! {
+    pub fn cmd(full: bool, dest: PathBuf) -> ! {
         let chain = chain();
 
         let mut out = std::io::Cursor::new(Vec::new());
 
-        if matches.is_present("full") {
+        if full {
             let full_chain = Chain {
                 ca: ca_chain_builtin(&chain),
                 sev: chain,
@@ -328,8 +298,7 @@ mod export {
             chain.encode(&mut out, ()).unwrap();
         }
 
-        let mut file = File::create(matches.value_of("file").unwrap())
-            .unwrap_or_exit("unable to create output file");
+        let mut file = File::create(dest).unwrap_or_exit("unable to create output file");
 
         file.write_all(&out.into_inner())
             .unwrap_or_exit("unable to write output file");
@@ -344,16 +313,15 @@ mod verify {
     use std::convert::TryInto;
     use std::fmt::Display;
 
-    pub fn cmd(matches: &ArgMatches) -> ! {
-        let mut schain = sev_chain(matches.value_of("sev"));
-        let cchain = match matches.value_of("ca") {
+    pub fn cmd(quiet: bool, sev: Option<PathBuf>, oca: Option<PathBuf>, ca: Option<PathBuf>) -> ! {
+        let mut schain = sev_chain(sev);
+        let cchain = match ca {
             Some(ca) => ca_chain(ca),
             None => ca_chain_builtin(&schain),
         };
-        let quiet = matches.is_present("quiet");
         let mut err = false;
 
-        if let Some(filename) = matches.value_of("oca") {
+        if let Some(filename) = oca {
             let mut file =
                 File::open(filename).unwrap_or_exit("unable to open OCA certificate file");
 
@@ -411,7 +379,7 @@ mod verify {
         }
     }
 
-    fn sev_chain(filename: Option<&str>) -> sev::Chain {
+    fn sev_chain(filename: Option<PathBuf>) -> sev::Chain {
         match filename {
             None => chain(),
             Some(f) => {
@@ -423,7 +391,7 @@ mod verify {
         }
     }
 
-    fn ca_chain(filename: &str) -> ca::Chain {
+    fn ca_chain(filename: PathBuf) -> ca::Chain {
         let mut file =
             File::open(&filename).unwrap_or_exit("unable to open CA certificate chain file");
         ca::Chain::decode(&mut file, ()).unwrap_or_exit("unable to decode chain")
@@ -433,20 +401,18 @@ mod verify {
 mod generate {
     use super::*;
 
-    pub fn cmd(matches: &ArgMatches) -> ! {
+    pub fn cmd(oca_path: PathBuf, key_path: PathBuf) -> ! {
         let (mut oca, prv) = sev::Certificate::generate(sev::Usage::OCA)
             .unwrap_or_exit("unable to generate OCA key pair");
         prv.sign(&mut oca).unwrap();
 
         // Write the certificate
-        let crt = matches.value_of("cert").unwrap();
-        let mut crt = File::create(crt).unwrap_or_exit("unable to create certificate file");
+        let mut crt = File::create(oca_path).unwrap_or_exit("unable to create certificate file");
         oca.encode(&mut crt, ())
             .unwrap_or_exit("unable to write certificate file");
 
         // Write the private key
-        let key = matches.value_of("key").unwrap();
-        let mut key = File::create(key).unwrap_or_exit("unable to create key file");
+        let mut key = File::create(key_path).unwrap_or_exit("unable to create key file");
         prv.encode(&mut key, ())
             .unwrap_or_exit("unable to write key file");
 
@@ -457,7 +423,7 @@ mod generate {
 mod rotate {
     use super::*;
 
-    pub fn cmd(_: &ArgMatches) -> ! {
+    pub fn cmd() -> ! {
         pdh()
     }
 
