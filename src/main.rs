@@ -76,6 +76,10 @@
 #![deny(clippy::all)]
 #![deny(missing_docs)]
 
+mod error;
+
+use error::{Contextual, Result};
+
 use structopt::StructOpt;
 
 use codicon::*;
@@ -84,26 +88,12 @@ use ::sev::certs::*;
 use ::sev::firmware::{Firmware, Status};
 use ::sev::Generation;
 
-use std::fmt::{Debug, Display};
 use std::fs::File;
 use std::path::PathBuf;
 use std::process::exit;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-
-trait UnwrapOrExit<T> {
-    fn unwrap_or_exit(self, context: impl Display) -> T;
-}
-
-impl<T, E: Debug> UnwrapOrExit<T> for Result<T, E> {
-    fn unwrap_or_exit(self, context: impl Display) -> T {
-        self.unwrap_or_else(|err| {
-            eprintln!("{}: {:?}", context, err);
-            exit(1)
-        })
-    }
-}
 
 #[derive(StructOpt)]
 #[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV environment")]
@@ -162,57 +152,72 @@ enum Sevctl {
     },
 }
 
-fn download(rsp: reqwest::Result<reqwest::blocking::Response>, usage: Usage) -> sev::Certificate {
-    let mut rsp = rsp.unwrap_or_exit(format!("unable to contact {} server", usage));
+fn download(
+    rsp: reqwest::Result<reqwest::blocking::Response>,
+    usage: Usage,
+) -> Result<sev::Certificate> {
+    let rsp = rsp.context(format!("unable to contact {} server", usage))?;
 
-    if !rsp.status().is_success() {
-        eprintln!("received failure from {} server: {}", usage, rsp.status());
-        exit(1);
-    }
+    let status = rsp.status();
+    let mut rsp = rsp.error_for_status().context(&format!(
+        "received failure from {} server: {}",
+        usage, status
+    ))?;
 
     let mut buf = Vec::new();
     rsp.copy_to(&mut buf)
-        .unwrap_or_exit(format!("unable to complete {} download", usage));
+        .context(format!("unable to complete {} download", usage))?;
 
     sev::Certificate::decode(&mut &buf[..], ())
-        .unwrap_or_exit(format!("unable to parse downloaded {}", usage))
+        .context(format!("unable to parse downloaded {}", usage))
 }
 
-fn firmware() -> Firmware {
-    Firmware::open().unwrap_or_exit("unable to open /dev/sev")
+fn firmware() -> Result<Firmware> {
+    Firmware::open().context("unable to open /dev/sev")
 }
 
-fn platform_status() -> Status {
-    firmware()
+fn platform_status() -> Result<Status> {
+    firmware()?
         .platform_status()
-        .unwrap_or_exit("unable to fetch platform status")
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .context("unable to fetch platform status")
 }
 
-fn chain() -> sev::Chain {
+fn chain() -> Result<sev::Chain> {
     const CEK_SVC: &str = "https://kdsintf.amd.com/cek/id";
 
-    let mut chain = firmware()
+    let mut chain = firmware()?
         .pdh_cert_export()
-        .unwrap_or_exit("unable to export SEV certificates");
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .context("unable to export SEV certificates")?;
 
-    let id = firmware()
+    let id = firmware()?
         .get_identifier()
-        .unwrap_or_exit("error fetching identifier");
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
-    chain.cek = download(reqwest::blocking::get(&url), Usage::CEK);
+    chain.cek = download(reqwest::blocking::get(&url), Usage::CEK)?;
 
-    chain
+    Ok(chain)
 }
 
-fn ca_chain_builtin(chain: &sev::Chain) -> ca::Chain {
+fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
     use std::convert::TryFrom;
-    Generation::try_from(chain)
-        .unwrap_or(Generation::Rome)
-        .into()
+
+    Ok(match Generation::try_from(chain) {
+        Ok(generation) => generation.into(),
+        _ => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no builtin matching certificates",
+            ))
+            .context("failed to deduce platform generation")
+        }
+    })
 }
 
 fn main() {
-    match Sevctl::from_args() {
+    let status = match Sevctl::from_args() {
         Sevctl::Export { full, destination } => export::cmd(full, destination),
         Sevctl::Generate { cert, key } => generate::cmd(cert, key),
         Sevctl::Reset => reset::cmd(),
@@ -224,17 +229,28 @@ fn main() {
             oca,
             ca,
         } => verify::cmd(quiet, sev, oca, ca),
+    };
+
+    if let Err(err) = status {
+        eprintln!("error: {}", err);
+        let mut err: &(dyn std::error::Error + 'static) = &err;
+        while let Some(cause) = err.source() {
+            eprintln!("caused by: {}", cause);
+            err = cause;
+        }
+
+        exit(1);
     }
 }
 
 mod reset {
     use super::*;
 
-    pub fn cmd() -> ! {
-        firmware()
+    pub fn cmd() -> Result<()> {
+        firmware()?
             .platform_reset()
-            .unwrap_or_exit("error resetting platform");
-        exit(0)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+            .context("error resetting platform")
     }
 }
 
@@ -254,8 +270,8 @@ mod show {
         Version,
     }
 
-    pub fn cmd(show: Show) -> ! {
-        let status = platform_status();
+    pub fn cmd(show: Show) -> Result<()> {
+        let status = platform_status()?;
 
         match show {
             Show::Version => println!("{}", status.build),
@@ -274,7 +290,7 @@ mod show {
             }
         }
 
-        exit(0)
+        Ok(())
     }
 }
 
@@ -282,28 +298,32 @@ mod export {
     use super::*;
     use std::io::Write;
 
-    pub fn cmd(full: bool, dest: PathBuf) -> ! {
-        let chain = chain();
+    pub fn cmd(full: bool, dest: PathBuf) -> Result<()> {
+        let chain = chain()?;
 
         let mut out = std::io::Cursor::new(Vec::new());
 
         if full {
             let full_chain = Chain {
-                ca: ca_chain_builtin(&chain),
+                ca: ca_chain_builtin(&chain)?,
                 sev: chain,
             };
 
-            full_chain.encode(&mut out, ()).unwrap();
+            full_chain
+                .encode(&mut out, ())
+                .context("certificate chain encoding failed")?;
         } else {
-            chain.encode(&mut out, ()).unwrap();
+            chain
+                .encode(&mut out, ())
+                .context("certificate chain encoding failed")?;
         }
 
-        let mut file = File::create(dest).unwrap_or_exit("unable to create output file");
+        let mut file = File::create(dest).context("unable to create output file")?;
 
         file.write_all(&out.into_inner())
-            .unwrap_or_exit("unable to write output file");
+            .context("unable to write output file")?;
 
-        exit(0)
+        Ok(())
     }
 }
 
@@ -313,20 +333,23 @@ mod verify {
     use std::convert::TryInto;
     use std::fmt::Display;
 
-    pub fn cmd(quiet: bool, sev: Option<PathBuf>, oca: Option<PathBuf>, ca: Option<PathBuf>) -> ! {
-        let mut schain = sev_chain(sev);
+    pub fn cmd(
+        quiet: bool,
+        sev: Option<PathBuf>,
+        oca: Option<PathBuf>,
+        ca: Option<PathBuf>,
+    ) -> Result<()> {
+        let mut schain = sev_chain(sev)?;
         let cchain = match ca {
-            Some(ca) => ca_chain(ca),
-            None => ca_chain_builtin(&schain),
+            Some(ca) => ca_chain(ca)?,
+            None => ca_chain_builtin(&schain)?,
         };
         let mut err = false;
 
         if let Some(filename) = oca {
-            let mut file =
-                File::open(filename).unwrap_or_exit("unable to open OCA certificate file");
+            let mut file = File::open(filename).context("unable to open OCA certificate file")?;
 
-            schain.oca =
-                sev::Certificate::decode(&mut file, ()).unwrap_or_exit("unable to decode OCA");
+            schain.oca = sev::Certificate::decode(&mut file, ()).context("unable to decode OCA")?;
         }
 
         if !quiet {
@@ -338,7 +361,12 @@ mod verify {
         err |= status("      ", &cchain.ask, &schain.cek, quiet);
         err |= status("         ", &cchain.ark, &cchain.ask, quiet);
         println!("\n • = self signed, ⬑ = signs, •̷ = invalid self sign, ⬑̸ = invalid signs");
-        exit(err as i32)
+
+        if err as i32 == 0 {
+            Ok(())
+        } else {
+            exit(err as i32)
+        }
     }
 
     fn status<'a, P, C>(pfx: &str, p: &'a P, c: &'a C, quiet: bool) -> bool
@@ -379,58 +407,55 @@ mod verify {
         }
     }
 
-    fn sev_chain(filename: Option<PathBuf>) -> sev::Chain {
-        match filename {
-            None => chain(),
+    fn sev_chain(filename: Option<PathBuf>) -> Result<sev::Chain> {
+        Ok(match filename {
+            None => chain()?,
             Some(f) => {
                 let mut file =
-                    File::open(f).unwrap_or_exit("unable to open SEV certificate chain file");
+                    File::open(f).context("unable to open SEV certificate chain file")?;
 
-                sev::Chain::decode(&mut file, ()).unwrap_or_exit("unable to decode chain")
+                sev::Chain::decode(&mut file, ()).context("unable to decode chain")?
             }
-        }
+        })
     }
 
-    fn ca_chain(filename: PathBuf) -> ca::Chain {
-        let mut file =
-            File::open(&filename).unwrap_or_exit("unable to open CA certificate chain file");
-        ca::Chain::decode(&mut file, ()).unwrap_or_exit("unable to decode chain")
+    fn ca_chain(filename: PathBuf) -> Result<ca::Chain> {
+        let mut file = File::open(&filename).context("unable to open CA certificate chain file")?;
+        Ok(ca::Chain::decode(&mut file, ()).context("unable to decode chain")?)
     }
 }
 
 mod generate {
     use super::*;
 
-    pub fn cmd(oca_path: PathBuf, key_path: PathBuf) -> ! {
+    pub fn cmd(oca_path: PathBuf, key_path: PathBuf) -> Result<()> {
         let (mut oca, prv) = sev::Certificate::generate(sev::Usage::OCA)
-            .unwrap_or_exit("unable to generate OCA key pair");
-        prv.sign(&mut oca).unwrap();
+            .context("unable to generate OCA key pair")?;
+        prv.sign(&mut oca).context("key signing failed")?;
 
         // Write the certificate
-        let mut crt = File::create(oca_path).unwrap_or_exit("unable to create certificate file");
+        let mut crt = File::create(oca_path).context("unable to create certificate file")?;
         oca.encode(&mut crt, ())
-            .unwrap_or_exit("unable to write certificate file");
+            .context("unable to write certificate file")?;
 
         // Write the private key
-        let mut key = File::create(key_path).unwrap_or_exit("unable to create key file");
+        let mut key = File::create(key_path).context("unable to create key file")?;
         prv.encode(&mut key, ())
-            .unwrap_or_exit("unable to write key file");
+            .context("unable to write key file")?;
 
-        exit(0)
+        Ok(())
     }
 }
 
 mod rotate {
     use super::*;
 
-    pub fn cmd() -> ! {
-        pdh()
-    }
-
-    fn pdh() -> ! {
-        firmware()
+    pub fn cmd() -> Result<()> {
+        firmware()?
             .pdh_generate()
-            .unwrap_or_exit("unable to rotate PDH");
-        exit(0)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+            .context("unable to rotate PDH")?;
+
+        Ok(())
     }
 }
