@@ -873,6 +873,20 @@ name = "serde"
 version = "1.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b88fa983de7720629c9387e9f517353ed404164b1e482c970a90c1a4aaf7dc1a"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.117"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbd1ae72adb44aab48f325a02444a5fc079349a8d804c1fc922aed3f7454c74e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "serde_json"
@@ -900,7 +914,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "0.1.0"
-source = "git+https://github.com/enarx/sev#66248f21ecd37052454a4c4a5897f5f07cfb77fa"
+source = "git+https://github.com/enarx/sev#3f90139bec3e69c0360d7bb4e4f5e989c19d32aa"
 dependencies = [
  "bitfield",
  "bitflags",
@@ -908,6 +922,7 @@ dependencies = [
  "dirs",
  "iocuddle",
  "openssl",
+ "serde",
 ]
 
 [[package]]
