@@ -204,16 +204,15 @@ fn chain() -> Result<sev::Chain> {
 fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
     use std::convert::TryFrom;
 
-    Ok(match Generation::try_from(chain) {
-        Ok(generation) => generation.into(),
-        _ => {
-            return Err(std::io::Error::new(
+    Generation::try_from(chain)
+        .map_err(|_| {
+            std::io::Error::new(
                 std::io::ErrorKind::NotFound,
-                "no builtin matching certificates",
-            ))
-            .context("failed to deduce platform generation")
-        }
-    })
+                "could not find a matching builtin certificate",
+            )
+        })
+        .context("failed to deduce platform generation")
+        .map(|g| g.into())
 }
 
 fn main() {
