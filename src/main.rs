@@ -89,6 +89,7 @@ use ::sev::firmware::{Firmware, Status};
 use ::sev::Generation;
 
 use std::fs::File;
+use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -179,7 +180,7 @@ fn firmware() -> Result<Firmware> {
 fn platform_status() -> Result<Status> {
     firmware()?
         .platform_status()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
         .context("unable to fetch platform status")
 }
 
@@ -188,12 +189,12 @@ fn chain() -> Result<sev::Chain> {
 
     let mut chain = firmware()?
         .pdh_cert_export()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
         .context("unable to export SEV certificates")?;
 
     let id = firmware()?
         .get_identifier()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
         .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
     chain.cek = download(reqwest::blocking::get(&url), Usage::CEK)?;
@@ -206,8 +207,8 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
 
     Generation::try_from(chain)
         .map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::NotFound,
+            Error::new(
+                ErrorKind::NotFound,
                 "could not find a matching builtin certificate",
             )
         })
@@ -248,7 +249,7 @@ mod reset {
     pub fn cmd() -> Result<()> {
         firmware()?
             .platform_reset()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
             .context("error resetting platform")
     }
 }
@@ -372,7 +373,7 @@ mod verify {
     where
         P: Display,
         C: Display,
-        &'a P: TryInto<Usage, Error = std::io::Error>,
+        &'a P: TryInto<Usage, Error = Error>,
         (&'a P, &'a P): Verifiable,
         (&'a P, &'a C): Verifiable,
     {
@@ -452,7 +453,7 @@ mod rotate {
     pub fn cmd() -> Result<()> {
         firmware()?
             .pdh_generate()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
             .context("unable to rotate PDH")?;
 
         Ok(())
