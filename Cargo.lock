@@ -939,7 +939,8 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "0.1.0"
-source = "git+https://github.com/enarx/sev#3a32c93ee5a6164f6285733e6771b40b38a9422c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14e7912c3660e45c8fc84f103ad9c17541c90bfb8dad2e36aeffbe1676bce8f2"
 dependencies = [
  "bitfield",
  "bitflags",
