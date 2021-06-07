@@ -92,6 +92,7 @@ use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::exit;
+use std::time::Duration;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
@@ -153,16 +154,33 @@ enum Sevctl {
     },
 }
 
-fn download(
-    rsp: reqwest::Result<reqwest::blocking::Response>,
-    usage: Usage,
-) -> Result<sev::Certificate> {
-    let rsp = rsp.context(format!("unable to contact {} server", usage))?;
-
-    let status = rsp.status();
-    let mut rsp = rsp.error_for_status().context(&format!(
-        "received failure from {} server: {}",
-        usage, status
+fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
+    let mut rsp = reqwest::blocking::get(url);
+    let mut http_request_replies = Vec::new();
+    for request_wait_seconds in &[0, 2, 4, 6, 9] {
+        std::thread::sleep(Duration::from_secs(*request_wait_seconds));
+        match &rsp {
+            // HTTP request has succeeded, ensure that the status code does not indicate an error.
+            Ok(found) => {
+                if found.status().is_success() {
+                    break;
+                } else {
+                    http_request_replies.push(format!(
+                        "Attempt #{}, Error: Received HTTP response #{}",
+                        http_request_replies.len() + 1,
+                        found.status()
+                    ));
+                    rsp = reqwest::blocking::get(url);
+                }
+            }
+            // HTTP request has failed.
+            Err(_) => break,
+        }
+    }
+    let mut rsp = rsp.context(format!(
+        "Failed to complete request: {}\nError codes received from server:\n{}",
+        usage,
+        http_request_replies.join("\n")
     ))?;
 
     let mut buf = Vec::new();
@@ -197,7 +215,8 @@ fn chain() -> Result<sev::Chain> {
         .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
         .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
-    chain.cek = download(reqwest::blocking::get(&url), Usage::CEK)?;
+
+    chain.cek = download(&url, Usage::CEK)?;
 
     Ok(chain)
 }
