@@ -253,6 +253,7 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
 }
 
 fn main() {
+    let mut verify_quiet = false;
     let status = match Sevctl::from_args() {
         Sevctl::Export { full, destination } => export::cmd(full, destination),
         Sevctl::Generate { cert, key } => generate::cmd(cert, key),
@@ -265,10 +266,16 @@ fn main() {
             sev,
             oca,
             ca,
-        } => verify::cmd(quiet, sev, oca, ca),
+        } => {
+            verify_quiet = quiet;
+            verify::cmd(quiet, sev, oca, ca)
+        }
     };
 
     if let Err(err) = status {
+        if verify_quiet {
+            exit(1);
+        }
         eprintln!("error: {}", err);
         let mut err: &(dyn std::error::Error + 'static) = &err;
         while let Some(cause) = err.source() {
@@ -402,7 +409,10 @@ mod verify {
         if err as i32 == 0 {
             Ok(())
         } else {
-            exit(err as i32)
+            Err(error::Context::new(
+                "SEV/CA certificate verification failed",
+                Box::<Error>::new(ErrorKind::InvalidData.into()),
+            ))
         }
     }
 
