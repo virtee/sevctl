@@ -35,6 +35,14 @@
 //! $ sevctl generate ~/my-cert ~/my-key
 //! ```
 //!
+//! ## provision
+//!
+//! Installs the operator-provided OCA certificate to take ownership of the platform.
+//!
+//! ```console
+//! $ sevctl provision ~/owners-cert ~/owners-private-key
+//! ```
+//!
 //! ## reset
 //!
 //! Resets the SEV platform. This will clear all persistent data managed by the platform.
@@ -119,6 +127,15 @@ enum Sevctl {
         cert: PathBuf,
 
         #[structopt(parse(from_os_str), help = "OCA key output file path")]
+        key: PathBuf,
+    },
+
+    #[structopt(about = "Take ownership of the SEV platform")]
+    Provision {
+        #[structopt(parse(from_os_str), help = "Path to the owner's OCA certificate")]
+        cert: PathBuf,
+
+        #[structopt(parse(from_os_str), help = "Path to the owner's OCA private key")]
         key: PathBuf,
     },
 
@@ -239,6 +256,7 @@ fn main() {
     let status = match Sevctl::from_args() {
         Sevctl::Export { full, destination } => export::cmd(full, destination),
         Sevctl::Generate { cert, key } => generate::cmd(cert, key),
+        Sevctl::Provision { cert, key } => provision::cmd(cert, key),
         Sevctl::Reset => reset::cmd(),
         Sevctl::Rotate => rotate::cmd(),
         Sevctl::Show { cmd } => show::cmd(cmd),
@@ -474,6 +492,39 @@ mod rotate {
             .pdh_generate()
             .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
             .context("unable to rotate PDH")?;
+
+        Ok(())
+    }
+}
+
+mod provision {
+    use super::*;
+
+    pub fn cmd(oca_path: PathBuf, prv_key_path: PathBuf) -> Result<()> {
+        let mut fw = firmware()?;
+        let cert = File::open(oca_path.clone())
+            .context(format!("failed to open {}", oca_path.display()))
+            .and_then(|mut f| {
+                sev::Certificate::decode(&mut f, ()).context("failed to decode OCA")
+            })?;
+
+        let prv_key = File::open(prv_key_path.clone())
+            .context(format!("failed to open {}", prv_key_path.display()))
+            .and_then(|mut f| {
+                PrivateKey::<sev::Usage>::decode(&mut f, &cert)
+                    .context("failed to decode OCA private key")
+            })?;
+
+        let mut pek = fw
+            .pek_csr()
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .context("cross signing request failed")?;
+        prv_key
+            .sign(&mut pek)
+            .context("failed to sign PEK with OCA private key")?;
+        fw.pek_cert_import(&pek, &cert)
+            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .context("failed to import the newly-signed PEK")?;
 
         Ok(())
     }

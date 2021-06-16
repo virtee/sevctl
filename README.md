@@ -40,6 +40,14 @@ Generates a new (self-signed) OCA certificate and key.
 $ sevctl generate ~/my-cert ~/my-key
 ```
 
+### provision
+
+Installs the operator-provided OCA certificate to take ownership of the platform.
+
+```console
+$ sevctl provision ~/owners-cert ~/owners-private-key
+```
+
 ### reset
 
 Resets the SEV platform. This will clear all persistent data managed by the platform.
