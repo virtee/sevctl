@@ -106,8 +106,17 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
 #[derive(StructOpt)]
+struct Sevctl {
+    #[structopt(subcommand)]
+    pub cmd: SevctlCmd,
+
+    #[structopt(short, long, help = "Don't print anything to the console")]
+    pub quiet: bool,
+}
+
+#[derive(StructOpt)]
 #[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV environment")]
-enum Sevctl {
+enum SevctlCmd {
     #[structopt(about = "Export the SEV or entire certificate chain")]
     Export {
         #[structopt(
@@ -153,9 +162,6 @@ enum Sevctl {
 
     #[structopt(about = "Verify certificate chain")]
     Verify {
-        #[structopt(short, long, help = "Don't print anything to the console")]
-        quiet: bool,
-
         #[structopt(long, parse(from_os_str), help = "Read SEV chain from specified file")]
         sev: Option<PathBuf>,
 
@@ -253,27 +259,19 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
 }
 
 fn main() {
-    let mut verify_quiet = false;
-    let status = match Sevctl::from_args() {
-        Sevctl::Export { full, destination } => export::cmd(full, destination),
-        Sevctl::Generate { cert, key } => generate::cmd(cert, key),
-        Sevctl::Provision { cert, key } => provision::cmd(cert, key),
-        Sevctl::Reset => reset::cmd(),
-        Sevctl::Rotate => rotate::cmd(),
-        Sevctl::Show { cmd } => show::cmd(cmd),
-        Sevctl::Verify {
-            quiet,
-            sev,
-            oca,
-            ca,
-        } => {
-            verify_quiet = quiet;
-            verify::cmd(quiet, sev, oca, ca)
-        }
+    let sevctl = Sevctl::from_args();
+    let status = match sevctl.cmd {
+        SevctlCmd::Export { full, destination } => export::cmd(full, destination),
+        SevctlCmd::Generate { cert, key } => generate::cmd(cert, key),
+        SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
+        SevctlCmd::Reset => reset::cmd(),
+        SevctlCmd::Rotate => rotate::cmd(),
+        SevctlCmd::Show { cmd } => show::cmd(cmd),
+        SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
     };
 
     if let Err(err) = status {
-        if verify_quiet {
+        if sevctl.quiet {
             exit(1);
         }
         eprintln!("error: {}", err);
@@ -404,7 +402,10 @@ mod verify {
         err |= status("   ", &schain.cek, &schain.pek, quiet);
         err |= status("      ", &cchain.ask, &schain.cek, quiet);
         err |= status("         ", &cchain.ark, &cchain.ask, quiet);
-        println!("\n • = self signed, ⬑ = signs, •̷ = invalid self sign, ⬑̸ = invalid signs");
+
+        if !quiet {
+            println!("\n • = self signed, ⬑ = signs, •̷ = invalid self sign, ⬑̸ = invalid signs");
+        }
 
         if err as i32 == 0 {
             Ok(())
