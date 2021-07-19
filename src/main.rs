@@ -35,6 +35,15 @@
 //! $ sevctl generate ~/my-cert ~/my-key
 //! ```
 //!
+//! ## ok
+//!
+//! Probes processor, sysfs, and KVM for AMD SEV and SEV-ES related features on the host and emits the results.
+//!
+//! ```console
+//! $ sevctl ok {sev, es}   // Probes support for the generation specified.
+//! $ sevctl ok             // Probes for both SEV and SEV-ES support.
+//! ```
+//!
 //! ## provision
 //!
 //! Installs the operator-provided OCA certificate to take ownership of the platform.
@@ -102,6 +111,8 @@ use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
 
+mod ok;
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
 
@@ -137,6 +148,12 @@ enum SevctlCmd {
 
         #[structopt(parse(from_os_str), help = "OCA key output file path")]
         key: PathBuf,
+    },
+
+    #[structopt(about = "Probe system for SEV support")]
+    Ok {
+        #[structopt(subcommand)]
+        gen: Option<ok::SevGeneration>,
     },
 
     #[structopt(about = "Take ownership of the SEV platform")]
@@ -263,6 +280,7 @@ fn main() {
     let status = match sevctl.cmd {
         SevctlCmd::Export { full, destination } => export::cmd(full, destination),
         SevctlCmd::Generate { cert, key } => generate::cmd(cert, key),
+        SevctlCmd::Ok { gen } => ok::cmd(gen, sevctl.quiet),
         SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Rotate => rotate::cmd(),

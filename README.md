@@ -40,6 +40,15 @@ Generates a new (self-signed) OCA certificate and key.
 $ sevctl generate ~/my-cert ~/my-key
 ```
 
+### ok
+
+Probes processor, sysfs, and KVM for AMD SEV and SEV-ES related features on the host and emits the results.
+
+```console
+$ sevctl ok {sev, es}   // Probes support for the generation specified.
+$ sevctl ok             // Probes for both SEV and SEV-ES support.
+```
+
 ### provision
 
 Installs the operator-provided OCA certificate to take ownership of the platform.
