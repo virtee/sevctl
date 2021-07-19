@@ -6,6 +6,7 @@ use std::arch::x86_64;
 use std::fmt;
 use std::fs;
 use std::mem::transmute;
+use std::mem::MaybeUninit;
 use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
@@ -282,6 +283,12 @@ fn collect_tests() -> Vec<Test> {
             run: Box::new(has_kvm_support),
             sub: vec![],
         },
+        Test {
+            name: "memlock limit",
+            gen_mask: SEV_MASK,
+            run: Box::new(memlock_rlimit),
+            sub: vec![],
+        },
     ];
 
     tests
@@ -485,6 +492,31 @@ fn sev_enabled_in_kvm() -> TestResult {
 
     TestResult {
         name: "SEV enabled in KVM",
+        stat,
+        mesg: Some(mesg),
+    }
+}
+
+fn memlock_rlimit() -> TestResult {
+    let mut rlimit = MaybeUninit::uninit();
+    let res = unsafe { libc::getrlimit(libc::RLIMIT_MEMLOCK, rlimit.as_mut_ptr()) };
+
+    let (stat, mesg) = if res == 0 {
+        let r = unsafe { rlimit.assume_init() };
+
+        (
+            TestState::Pass,
+            format!("Soft: {} | Hard: {}", r.rlim_cur, r.rlim_max),
+        )
+    } else {
+        (
+            TestState::Fail,
+            "Unable to retrieve memlock resource limits".to_string(),
+        )
+    };
+
+    TestResult {
+        name: "Memlock resource limit",
         stat,
         mesg: Some(mesg),
     }
