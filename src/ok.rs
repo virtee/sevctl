@@ -4,6 +4,7 @@ use super::*;
 use colorful::*;
 use std::arch::x86_64;
 use std::fmt;
+use std::fs;
 use std::mem::transmute;
 use std::str::from_utf8;
 
@@ -229,6 +230,18 @@ fn collect_tests() -> Vec<Test> {
                         }),
                         sub: vec![],
                     },
+                    Test {
+                        name: "/dev/sev readable",
+                        gen_mask: SEV_MASK,
+                        run: Box::new(dev_sev_r),
+                        sub: vec![],
+                    },
+                    Test {
+                        name: "/dev/sev writable",
+                        gen_mask: SEV_MASK,
+                        run: Box::new(dev_sev_w),
+                        sub: vec![],
+                    },
                 ],
             },
             Test {
@@ -362,5 +375,40 @@ fn emit_skip(tests: &[Test], level: usize, quiet: bool) {
             );
             emit_skip(&t.sub, level + INDENT, quiet);
         }
+    }
+}
+
+fn dev_sev_r() -> TestResult {
+    let (stat, mesg) = match dev_sev_rw(fs::OpenOptions::new().read(true)) {
+        Ok(_) => (TestState::Pass, "/dev/sev readable".to_string()),
+        Err(e) => (TestState::Fail, format!("/dev/sev not readable: {}", e)),
+    };
+
+    TestResult {
+        name: "Reading /dev/sev",
+        stat,
+        mesg: Some(mesg),
+    }
+}
+
+fn dev_sev_w() -> TestResult {
+    let (stat, mesg) = match dev_sev_rw(fs::OpenOptions::new().write(true)) {
+        Ok(_) => (TestState::Pass, "/dev/sev writable".to_string()),
+        Err(e) => (TestState::Fail, format!("/dev/sev not writable: {}", e)),
+    };
+
+    TestResult {
+        name: "Writing /dev/sev",
+        stat,
+        mesg: Some(mesg),
+    }
+}
+
+fn dev_sev_rw(file: &mut fs::OpenOptions) -> Result<()> {
+    let path = "/dev/sev";
+
+    match file.open(path) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(error::Context::new(&e.to_string(), Box::new(e))),
     }
 }
