@@ -6,6 +6,7 @@ use std::arch::x86_64;
 use std::fmt;
 use std::fs;
 use std::mem::transmute;
+use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
 #[derive(StructOpt, PartialEq)]
@@ -56,216 +57,232 @@ impl fmt::Display for TestState {
 }
 
 fn collect_tests() -> Vec<Test> {
-    let tests = vec![Test {
-        name: "AMD CPU",
-        gen_mask: SEV_MASK,
-        run: Box::new(|| {
-            let res = unsafe { x86_64::__cpuid(0x00000000) };
-            let name: [u8; 12] = unsafe { transmute([res.ebx, res.edx, res.ecx]) };
-            let name = from_utf8(&name[..]).unwrap_or("ERROR_FOUND");
+    let tests = vec![
+        Test {
+            name: "AMD CPU",
+            gen_mask: SEV_MASK,
+            run: Box::new(|| {
+                let res = unsafe { x86_64::__cpuid(0x00000000) };
+                let name: [u8; 12] = unsafe { transmute([res.ebx, res.edx, res.ecx]) };
+                let name = from_utf8(&name[..]).unwrap_or("ERROR_FOUND");
 
-            let stat = if name == "AuthenticAMD" {
-                TestState::Pass
-            } else {
-                TestState::Fail
-            };
+                let stat = if name == "AuthenticAMD" {
+                    TestState::Pass
+                } else {
+                    TestState::Fail
+                };
 
-            TestResult {
-                name: "AMD CPU",
-                stat,
-                mesg: None,
-            }
-        }),
-        sub: vec![
-            Test {
-                name: "Microcode support",
-                gen_mask: SEV_MASK,
-                run: Box::new(|| {
-                    let cpu_name = {
-                        let mut bytestr = Vec::with_capacity(48);
-                        for cpuid in 0x8000_0002_u32..=0x8000_0004_u32 {
-                            let cpuid = unsafe { x86_64::__cpuid(cpuid) };
-                            let mut bytes: Vec<u8> = [cpuid.eax, cpuid.ebx, cpuid.ecx, cpuid.edx]
-                                .iter()
-                                .flat_map(|r| r.to_le_bytes().to_vec())
-                                .collect();
-                            bytestr.append(&mut bytes);
+                TestResult {
+                    name: "AMD CPU",
+                    stat,
+                    mesg: None,
+                }
+            }),
+            sub: vec![
+                Test {
+                    name: "Microcode support",
+                    gen_mask: SEV_MASK,
+                    run: Box::new(|| {
+                        let cpu_name = {
+                            let mut bytestr = Vec::with_capacity(48);
+                            for cpuid in 0x8000_0002_u32..=0x8000_0004_u32 {
+                                let cpuid = unsafe { x86_64::__cpuid(cpuid) };
+                                let mut bytes: Vec<u8> =
+                                    [cpuid.eax, cpuid.ebx, cpuid.ecx, cpuid.edx]
+                                        .iter()
+                                        .flat_map(|r| r.to_le_bytes().to_vec())
+                                        .collect();
+                                bytestr.append(&mut bytes);
+                            }
+                            String::from_utf8(bytestr)
+                                .unwrap_or_else(|_| "ERROR_FOUND".to_string())
+                                .trim()
+                                .to_string()
+                        };
+
+                        let stat = if cpu_name.to_uppercase().contains("EPYC") {
+                            TestState::Pass
+                        } else {
+                            TestState::Fail
+                        };
+
+                        TestResult {
+                            name: "Microcode support",
+                            stat,
+                            mesg: None,
                         }
-                        String::from_utf8(bytestr)
-                            .unwrap_or_else(|_| "ERROR_FOUND".to_string())
-                            .trim()
-                            .to_string()
-                    };
+                    }),
+                    sub: vec![],
+                },
+                Test {
+                    name: "Secure Memory Encryption (SME)",
+                    gen_mask: SEV_MASK,
+                    run: Box::new(|| {
+                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
 
-                    let stat = if cpu_name.to_uppercase().contains("EPYC") {
-                        TestState::Pass
-                    } else {
-                        TestState::Fail
-                    };
+                        let stat = if (res.eax & 0x1) != 0 {
+                            TestState::Pass
+                        } else {
+                            TestState::Fail
+                        };
 
-                    TestResult {
-                        name: "Microcode support",
-                        stat,
-                        mesg: None,
-                    }
-                }),
-                sub: vec![],
-            },
-            Test {
-                name: "Secure Memory Encryption (SME)",
-                gen_mask: SEV_MASK,
-                run: Box::new(|| {
-                    let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                        TestResult {
+                            name: "Secure Memory Encryption (SME)",
+                            stat,
+                            mesg: None,
+                        }
+                    }),
+                    sub: vec![],
+                },
+                Test {
+                    name: "Secure Encrypted Virtualization (SEV)",
+                    gen_mask: SEV_MASK,
+                    run: Box::new(|| {
+                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
 
-                    let stat = if (res.eax & 0x1) != 0 {
-                        TestState::Pass
-                    } else {
-                        TestState::Fail
-                    };
+                        let stat = if (res.eax & 0x1 << 1) != 0 {
+                            TestState::Pass
+                        } else {
+                            TestState::Fail
+                        };
 
-                    TestResult {
-                        name: "Secure Memory Encryption (SME)",
-                        stat,
-                        mesg: None,
-                    }
-                }),
-                sub: vec![],
-            },
-            Test {
-                name: "Secure Encrypted Virtualization (SEV)",
-                gen_mask: SEV_MASK,
-                run: Box::new(|| {
-                    let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                        TestResult {
+                            name: "Secure Encrypted Virtualization (SEV)",
+                            stat,
+                            mesg: None,
+                        }
+                    }),
+                    sub: vec![
+                        Test {
+                            name: "Encrypted State (SEV-ES)",
+                            gen_mask: ES_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
 
-                    let stat = if (res.eax & 0x1 << 1) != 0 {
-                        TestState::Pass
-                    } else {
-                        TestState::Fail
-                    };
+                                let stat = if (res.eax & 0x1 << 3) != 0 {
+                                    TestState::Pass
+                                } else {
+                                    TestState::Fail
+                                };
 
-                    TestResult {
-                        name: "Secure Encrypted Virtualization (SEV)",
-                        stat,
-                        mesg: None,
-                    }
-                }),
-                sub: vec![
-                    Test {
-                        name: "Encrypted State (SEV-ES)",
-                        gen_mask: ES_MASK,
-                        run: Box::new(|| {
-                            let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                TestResult {
+                                    name: "Encrypted State (SEV-ES)",
+                                    stat,
+                                    mesg: None,
+                                }
+                            }),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "Physical address bit reduction",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let field = res.ebx & 0b1111_1100_0000 >> 6;
 
-                            let stat = if (res.eax & 0x1 << 3) != 0 {
-                                TestState::Pass
-                            } else {
-                                TestState::Fail
-                            };
+                                TestResult {
+                                    name: "Physical address bit reduction",
+                                    stat: TestState::Pass,
+                                    mesg: Some(format!("{}", field)),
+                                }
+                            }),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "C-bit location",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let field = res.ebx & 0b01_1111;
 
-                            TestResult {
-                                name: "Encrypted State (SEV-ES)",
-                                stat,
-                                mesg: None,
-                            }
-                        }),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "Physical address bit reduction",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(|| {
-                            let res = unsafe { x86_64::__cpuid(0x8000001f) };
-                            let field = res.ebx & 0b1111_1100_0000 >> 6;
+                                TestResult {
+                                    name: "C-bit location",
+                                    stat: TestState::Pass,
+                                    mesg: Some(format!("{}", field)),
+                                }
+                            }),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "Number of encrypted guests supported simultaneously",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let field = res.ecx;
 
-                            TestResult {
-                                name: "Physical address bit reduction",
-                                stat: TestState::Pass,
-                                mesg: Some(format!("{}", field)),
-                            }
-                        }),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "C-bit location",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(|| {
-                            let res = unsafe { x86_64::__cpuid(0x8000001f) };
-                            let field = res.ebx & 0b01_1111;
+                                TestResult {
+                                    name: "Number of encrypted guests supported simultaneously",
+                                    stat: TestState::Pass,
+                                    mesg: Some(format!("{}", field)),
+                                }
+                            }),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let field = res.edx;
 
-                            TestResult {
-                                name: "C-bit location",
-                                stat: TestState::Pass,
-                                mesg: Some(format!("{}", field)),
-                            }
-                        }),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "Number of encrypted guests supported simultaneously",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(|| {
-                            let res = unsafe { x86_64::__cpuid(0x8000001f) };
-                            let field = res.ecx;
+                                TestResult {
+                                    name:
+                                        "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
+                                    stat: TestState::Pass,
+                                    mesg: Some(format!("{}", field)),
+                                }
+                            }),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "SEV enabled in KVM",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(sev_enabled_in_kvm),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "/dev/sev readable",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(dev_sev_r),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "/dev/sev writable",
+                            gen_mask: SEV_MASK,
+                            run: Box::new(dev_sev_w),
+                            sub: vec![],
+                        },
+                    ],
+                },
+                Test {
+                    name: "Page flush MSR",
+                    gen_mask: SEV_MASK,
+                    run: Box::new(|| {
+                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
 
-                            TestResult {
-                                name: "Number of encrypted guests supported simultaneously",
-                                stat: TestState::Pass,
-                                mesg: Some(format!("{}", field)),
-                            }
-                        }),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(|| {
-                            let res = unsafe { x86_64::__cpuid(0x8000001f) };
-                            let field = res.edx;
+                        let stat = if (res.eax & 0x1 << 2) != 0 {
+                            TestState::Pass
+                        } else {
+                            TestState::Fail
+                        };
 
-                            TestResult {
-                                name: "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
-                                stat: TestState::Pass,
-                                mesg: Some(format!("{}", field)),
-                            }
-                        }),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "/dev/sev readable",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(dev_sev_r),
-                        sub: vec![],
-                    },
-                    Test {
-                        name: "/dev/sev writable",
-                        gen_mask: SEV_MASK,
-                        run: Box::new(dev_sev_w),
-                        sub: vec![],
-                    },
-                ],
-            },
-            Test {
-                name: "Page flush MSR",
-                gen_mask: SEV_MASK,
-                run: Box::new(|| {
-                    let res = unsafe { x86_64::__cpuid(0x8000001f) };
-
-                    let stat = if (res.eax & 0x1 << 2) != 0 {
-                        TestState::Pass
-                    } else {
-                        TestState::Fail
-                    };
-
-                    TestResult {
-                        name: "Page flush MSR",
-                        stat,
-                        mesg: None,
-                    }
-                }),
-                sub: vec![],
-            },
-        ],
-    }];
+                        TestResult {
+                            name: "Page flush MSR",
+                            stat,
+                            mesg: None,
+                        }
+                    }),
+                    sub: vec![],
+                },
+            ],
+        },
+        Test {
+            name: "KVM Support",
+            gen_mask: SEV_MASK,
+            run: Box::new(has_kvm_support),
+            sub: vec![],
+        },
+    ];
 
     tests
 }
@@ -410,5 +427,65 @@ fn dev_sev_rw(file: &mut fs::OpenOptions) -> Result<()> {
     match file.open(path) {
         Ok(_) => Ok(()),
         Err(e) => Err(error::Context::new(&e.to_string(), Box::new(e))),
+    }
+}
+
+fn has_kvm_support() -> TestResult {
+    let path = "/dev/kvm";
+
+    let (stat, mesg) = match File::open(path) {
+        Ok(kvm) => {
+            let api_version = unsafe { libc::ioctl(kvm.as_raw_fd(), 0xAE00, 0) };
+            if api_version < 0 {
+                (
+                    TestState::Fail,
+                    "Error - accessing KVM device node failed".to_string(),
+                )
+            } else {
+                (TestState::Pass, format!("API version: {}", api_version))
+            }
+        }
+        Err(e) => (TestState::Fail, format!("Error reading {}: ({})", path, e)),
+    };
+
+    TestResult {
+        name: "KVM supported",
+        stat,
+        mesg: Some(mesg),
+    }
+}
+
+fn sev_enabled_in_kvm() -> TestResult {
+    let path_loc = "/sys/module/kvm_amd/parameters/sev";
+    let path = std::path::Path::new(path_loc);
+
+    let (stat, mesg) = if path.exists() {
+        match std::fs::read_to_string(path_loc) {
+            Ok(result) => {
+                if result.trim() == "1" {
+                    (TestState::Pass, "enabled".to_string())
+                } else {
+                    (
+                        TestState::Fail,
+                        format!("Error - contents read from {}: {}", path_loc, result.trim()),
+                    )
+                }
+            }
+            Err(e) => (
+                TestState::Fail,
+                format!("Error - (unable to read {}): {}", path_loc, e,),
+            ),
+        }
+    } else {
+        (
+            TestState::Fail,
+            format!("Error - {} does not exist", path_loc),
+        )
+    };
+
+    TestResult {
+        name: "SEV enabled in KVM",
+        stat,
+        mesg: Some(mesg),
     }
 }
