@@ -469,7 +469,7 @@ fn sev_enabled_in_kvm() -> TestResult {
     let (stat, mesg) = if path.exists() {
         match std::fs::read_to_string(path_loc) {
             Ok(result) => {
-                if result.trim() == "1" {
+                if result.trim() == "1" || result.trim() == "Y" {
                     (TestState::Pass, "enabled".to_string())
                 } else {
                     (
