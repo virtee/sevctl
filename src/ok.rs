@@ -179,6 +179,59 @@ fn collect_tests() -> Vec<Test> {
                             sub: vec![],
                         },
                         Test {
+                            name: "Secure Nested Paging (SEV-SNP)",
+                            gen_mask: SNP_MASK,
+                            run: Box::new(|| {
+                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+
+                                let stat = if (res.eax & 0x1 << 4) != 0 {
+                                    TestState::Pass
+                                } else {
+                                    TestState::Fail
+                                };
+
+                                TestResult {
+                                    name: "Secure Nested Paging (SEV-SNP)",
+                                    stat,
+                                    mesg: None,
+                                }
+                            }),
+                            sub: vec![Test {
+                                name: "VM Permission Levels",
+                                gen_mask: SNP_MASK,
+                                run: Box::new(|| {
+                                    let res = unsafe { x86_64::__cpuid(0x8000001f) };
+
+                                    let stat = if (res.eax & 0x1 << 5) != 0 {
+                                        TestState::Pass
+                                    } else {
+                                        TestState::Fail
+                                    };
+
+                                    TestResult {
+                                        name: "VM Permission Levels",
+                                        stat,
+                                        mesg: None,
+                                    }
+                                }),
+                                sub: vec![Test {
+                                    name: "Number of VMPLs",
+                                    gen_mask: SNP_MASK,
+                                    run: Box::new(|| {
+                                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                        let num_vmpls = (res.ebx & 0xF000) >> 12;
+
+                                        TestResult {
+                                            name: "Number of VMPLs",
+                                            stat: TestState::Pass,
+                                            mesg: Some(format!("{}", num_vmpls)),
+                                        }
+                                    }),
+                                    sub: vec![],
+                                }],
+                            }],
+                        },
+                        Test {
                             name: "Physical address bit reduction",
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
