@@ -17,6 +17,9 @@ pub enum SevGeneration {
 
     #[structopt(about = "SEV + Encrypted State")]
     Es,
+
+    #[structopt(about = "SEV + Secure Nested Paging")]
+    Snp,
 }
 
 type TestFn = dyn Fn() -> TestResult;
@@ -24,6 +27,7 @@ type TestFn = dyn Fn() -> TestResult;
 // SEV generation-specific bitmasks.
 const SEV_MASK: usize = 1;
 const ES_MASK: usize = 1 << 1;
+const SNP_MASK: usize = 1 << 2;
 
 struct Test {
     name: &'static str,
@@ -299,10 +303,13 @@ const INDENT: usize = 2;
 pub fn cmd(gen: Option<SevGeneration>, quiet: bool) -> Result<()> {
     let tests = collect_tests();
 
-    let mask = if let Some(SevGeneration::Sev) = gen {
-        SEV_MASK
-    } else {
-        SEV_MASK | ES_MASK
+    let mask = match gen {
+        Some(g) => match g {
+            SevGeneration::Sev => SEV_MASK,
+            SevGeneration::Es => SEV_MASK | ES_MASK,
+            SevGeneration::Snp => SEV_MASK | ES_MASK | SNP_MASK,
+        },
+        None => SEV_MASK | ES_MASK | SNP_MASK,
     };
 
     if run_test(&tests, 0, quiet, mask) {
