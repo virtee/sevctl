@@ -67,7 +67,7 @@ fn collect_tests() -> Vec<Test> {
             name: "AMD CPU",
             gen_mask: SEV_MASK,
             run: Box::new(|| {
-                let res = unsafe { x86_64::__cpuid(0x00000000) };
+                let res = unsafe { x86_64::__cpuid(0x0000_0000) };
                 let name: [u8; 12] = unsafe { transmute([res.ebx, res.edx, res.ecx]) };
                 let name = from_utf8(&name[..]).unwrap_or("ERROR_FOUND");
 
@@ -123,7 +123,7 @@ fn collect_tests() -> Vec<Test> {
                     name: "Secure Memory Encryption (SME)",
                     gen_mask: SEV_MASK,
                     run: Box::new(|| {
-                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                        let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                         let stat = if (res.eax & 0x1) != 0 {
                             TestState::Pass
@@ -143,7 +143,7 @@ fn collect_tests() -> Vec<Test> {
                     name: "Secure Encrypted Virtualization (SEV)",
                     gen_mask: SEV_MASK,
                     run: Box::new(|| {
-                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                        let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                         let stat = if (res.eax & 0x1 << 1) != 0 {
                             TestState::Pass
@@ -162,7 +162,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "Encrypted State (SEV-ES)",
                             gen_mask: ES_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                                 let stat = if (res.eax & 0x1 << 3) != 0 {
                                     TestState::Pass
@@ -182,7 +182,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "Secure Nested Paging (SEV-SNP)",
                             gen_mask: SNP_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                                 let stat = if (res.eax & 0x1 << 4) != 0 {
                                     TestState::Pass
@@ -200,7 +200,7 @@ fn collect_tests() -> Vec<Test> {
                                 name: "VM Permission Levels",
                                 gen_mask: SNP_MASK,
                                 run: Box::new(|| {
-                                    let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                    let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                                     let stat = if (res.eax & 0x1 << 5) != 0 {
                                         TestState::Pass
@@ -218,7 +218,7 @@ fn collect_tests() -> Vec<Test> {
                                     name: "Number of VMPLs",
                                     gen_mask: SNP_MASK,
                                     run: Box::new(|| {
-                                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                        let res = unsafe { x86_64::__cpuid(0x8000_001f) };
                                         let num_vmpls = (res.ebx & 0xF000) >> 12;
 
                                         TestResult {
@@ -235,7 +235,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "Physical address bit reduction",
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
                                 let field = res.ebx & 0b1111_1100_0000 >> 6;
 
                                 TestResult {
@@ -250,7 +250,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "C-bit location",
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
                                 let field = res.ebx & 0b01_1111;
 
                                 TestResult {
@@ -265,7 +265,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "Number of encrypted guests supported simultaneously",
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
                                 let field = res.ecx;
 
                                 TestResult {
@@ -280,7 +280,7 @@ fn collect_tests() -> Vec<Test> {
                             name: "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
-                                let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                                let res = unsafe { x86_64::__cpuid(0x8000_001f) };
                                 let field = res.edx;
 
                                 TestResult {
@@ -316,7 +316,7 @@ fn collect_tests() -> Vec<Test> {
                     name: "Page flush MSR",
                     gen_mask: SEV_MASK,
                     run: Box::new(|| {
-                        let res = unsafe { x86_64::__cpuid(0x8000001f) };
+                        let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
                         let stat = if (res.eax & 0x1 << 2) != 0 {
                             TestState::Pass
