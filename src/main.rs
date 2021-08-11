@@ -94,6 +94,7 @@
 #![deny(missing_docs)]
 
 mod error;
+mod http;
 
 use error::{Contextual, Result};
 
@@ -195,40 +196,50 @@ enum SevctlCmd {
 }
 
 fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
-    let mut rsp = reqwest::blocking::get(url);
-    let mut http_request_replies = Vec::new();
-    for request_wait_seconds in &[0, 2, 4, 6, 9] {
-        std::thread::sleep(Duration::from_secs(*request_wait_seconds));
-        match &rsp {
-            // HTTP request has succeeded, ensure that the status code does not indicate an error.
-            Ok(found) => {
-                if found.status().is_success() {
-                    break;
-                } else {
-                    http_request_replies.push(format!(
-                        "Attempt #{}, Error: Received HTTP response #{}",
-                        http_request_replies.len() + 1,
-                        found.status()
-                    ));
-                    rsp = reqwest::blocking::get(url);
-                }
+    use error::Context;
+    use std::error::Error;
+
+    let mut err_stack = vec![];
+
+    for attempt in 1..4 {
+        match http::get(url) {
+            Ok(rsp) => {
+                return sev::Certificate::decode(rsp.into_reader(), ())
+                    .context(format!("failed to decode {} certificate", usage))
             }
-            // HTTP request has failed.
-            Err(_) => break,
+            Err(http::Error::Status(_, rsp)) => {
+                err_stack.push(Context::new(
+                    format!("http request #{} failed", attempt).as_str(),
+                    format!("{:?}", rsp).into(),
+                ));
+                let retry: Option<u16> = rsp.header("retry-after").and_then(|h| h.parse().ok());
+                let retry = retry.unwrap_or(5);
+                std::thread::sleep(Duration::from_secs(retry as _));
+            }
+            Err(e) => return Err(Context::new("transport error", Box::new(e))),
         }
     }
-    let mut rsp = rsp.context(format!(
-        "Failed to complete request: {}\nError codes received from server:\n{}",
-        usage,
-        http_request_replies.join("\n")
-    ))?;
 
-    let mut buf = Vec::new();
-    rsp.copy_to(&mut buf)
-        .context(format!("unable to complete {} download", usage))?;
+    // One last attempt before giving up
+    let rsp = http::get(url).map_err(|e| {
+        let prev_attempts = err_stack
+            .into_iter()
+            .map(|e| {
+                let cause = match e.source() {
+                    Some(c) => format!("{}", c),
+                    None => "".to_string(),
+                };
+                format!("{}: {}", e, cause)
+            })
+            .collect::<Vec<String>>();
+        Context::new(
+            &format!("final http request failed: {}", e),
+            prev_attempts.join("; ").into(),
+        )
+    })?;
 
-    sev::Certificate::decode(&mut &buf[..], ())
-        .context(format!("unable to parse downloaded {}", usage))
+    sev::Certificate::decode(rsp.into_reader(), ())
+        .context(format!("failed to decode {} certificate", usage))
 }
 
 fn firmware() -> Result<Firmware> {
