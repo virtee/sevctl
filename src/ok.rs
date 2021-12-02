@@ -251,7 +251,7 @@ fn collect_tests() -> Vec<Test> {
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
-                                let field = res.ebx & 0b01_1111;
+                                let field = res.ebx & 0b11_1111;
 
                                 TestResult {
                                     name: "C-bit location",
