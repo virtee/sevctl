@@ -73,6 +73,14 @@ Rotates the Platform Diffie-Hellman (PDH).
 $ sevctl rotate
 ```
 
+### session
+
+Given a certificate chain file and 32-bit policy, generates base64-encoded GODH and launch session files; as
+well as encoded (not base64) TIK and TEK files.
+
+```console
+$ sevctl session --name {name} {/pdh/cert/path} {policy}
+```
 ### show
 
 Describes the state of the SEV platform.

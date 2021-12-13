@@ -68,6 +68,14 @@
 //! $ sevctl rotate
 //! ```
 //!
+//! ## session
+//!
+//! Given a certificate chain file and 32-bit policy, generates base64-encoded GODH and launch session files; as
+//! well as encoded (not base64) TIK and TEK files.
+//!
+//! ```console
+//! $ sevctl session --name {name} {/pdh/cert/path} {policy}
+//! ```
 //! ## show
 //!
 //! Describes the state of the SEV platform.
@@ -113,6 +121,7 @@ use std::process::exit;
 use std::time::Duration;
 
 mod ok;
+mod session;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
@@ -171,6 +180,21 @@ enum SevctlCmd {
 
     #[structopt(about = "Rotate PDH")]
     Rotate,
+
+    #[structopt(about = "Generate a SEV launch session")]
+    Session {
+        #[structopt(short, long, help = "Name used to identify file names")]
+        name: Option<String>,
+
+        #[structopt(
+            parse(from_os_str),
+            help = "Path of the file containing the certificate chain"
+        )]
+        pdh: PathBuf,
+
+        #[structopt(help = "32-bit integer representing the launch policy")]
+        policy: u32,
+    },
 
     #[structopt(about = "Display information about the SEV platform")]
     Show {
@@ -295,6 +319,7 @@ fn main() {
         SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Rotate => rotate::cmd(),
+        SevctlCmd::Session { name, pdh, policy } => session::cmd(name, pdh, policy),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
     };
