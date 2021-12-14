@@ -21,7 +21,7 @@ is-it-maintained-issue-resolution = { repository = "enarx/sevctl" }
 is-it-maintained-open-issues = { repository = "enarx/sevctl" }
 
 [dependencies]
-sev = { version = "0.1", features = ["openssl"] }
+sev = { git = "https://github.com/enarx/sev", rev = "02036c439c5b2ef3bbaa55424538d54c1f15e8a0", features = ["openssl"] }
 structopt = "0.3"
 codicon = "3.0"
 colorful = "0.2.1"

@@ -103,7 +103,7 @@ use structopt::StructOpt;
 use codicon::*;
 
 use ::sev::certs::*;
-use ::sev::firmware::{Firmware, Status};
+use ::sev::firmware::{Firmware, PlatformStatusFlags, Status};
 use ::sev::Generation;
 
 use std::fs::File;
@@ -327,7 +327,6 @@ mod reset {
 
 mod show {
     use super::*;
-    use ::sev::firmware::Flags;
 
     #[derive(StructOpt)]
     pub enum Show {
@@ -348,12 +347,17 @@ mod show {
             Show::Version => println!("{}", status.build),
             Show::Guests => println!("{}", status.guests),
             Show::Flags => {
-                for f in [Flags::OWNED, Flags::ENCRYPTED_STATE].iter() {
+                for f in [
+                    PlatformStatusFlags::OWNED,
+                    PlatformStatusFlags::ENCRYPTED_STATE,
+                ]
+                .iter()
+                {
                     println!(
                         "{}",
                         match status.flags & *f {
-                            Flags::ENCRYPTED_STATE => "es",
-                            Flags::OWNED => "owned",
+                            PlatformStatusFlags::ENCRYPTED_STATE => "es",
+                            PlatformStatusFlags::OWNED => "owned",
                             _ => continue,
                         }
                     );
