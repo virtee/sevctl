@@ -11,6 +11,7 @@ use url::Url;
 
 #[derive(Debug)]
 pub struct Response {
+    #[allow(dead_code)]
     status: u16,
     headers: HashMap<String, String>,
     body: Vec<u8>,
