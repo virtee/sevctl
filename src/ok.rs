@@ -22,6 +22,16 @@ pub enum SevGeneration {
     Snp,
 }
 
+impl SevGeneration {
+    fn to_mask(&self) -> usize {
+        match self {
+            SevGeneration::Sev => SEV_MASK,
+            SevGeneration::Es => SEV_MASK | ES_MASK,
+            SevGeneration::Snp => SEV_MASK | ES_MASK | SNP_MASK,
+        }
+    }
+}
+
 type TestFn = dyn Fn() -> TestResult;
 
 // SEV generation-specific bitmasks.
@@ -357,12 +367,8 @@ pub fn cmd(gen: Option<SevGeneration>, quiet: bool) -> Result<()> {
     let tests = collect_tests();
 
     let mask = match gen {
-        Some(g) => match g {
-            SevGeneration::Sev => SEV_MASK,
-            SevGeneration::Es => SEV_MASK | ES_MASK,
-            SevGeneration::Snp => SEV_MASK | ES_MASK | SNP_MASK,
-        },
-        None => SEV_MASK | ES_MASK | SNP_MASK,
+        Some(g) => g.to_mask(),
+        None => current_gen().unwrap_or(SevGeneration::Snp).to_mask(),
     };
 
     if run_test(&tests, 0, quiet, mask) {
@@ -580,4 +586,79 @@ fn memlock_rlimit() -> TestResult {
         stat,
         mesg: Some(mesg),
     }
+}
+
+const SEV_CPU_IDS: [usize; 3] = [7551, 7451, 7401];
+const ES_CPU_IDS: [usize; 2] = [7402, 7742];
+const SNP_CPU_IDS: [usize; 3] = [7713, 7763, 7413];
+
+fn current_gen() -> Result<SevGeneration> {
+    let mut bytestr = Vec::with_capacity(48);
+    let cpu_name = {
+        for cpuid in 0x8000_0002_u32..=0x8000_0004_u32 {
+            let cpuid = unsafe { x86_64::__cpuid(cpuid) };
+            let mut bytes: Vec<u8> = [cpuid.eax, cpuid.ebx, cpuid.ecx, cpuid.edx]
+                .iter()
+                .flat_map(|r| r.to_le_bytes().to_vec())
+                .collect();
+            bytestr.append(&mut bytes);
+        }
+
+        String::from_utf8(bytestr)
+            .unwrap_or_else(|_| "ERROR_FOUND".to_string())
+            .trim()
+            .to_string()
+    };
+
+    let name = cpu_name.to_uppercase();
+    let id = get_id(name).context("couldn't convert CPU name to string")?;
+
+    for sevid in &SEV_CPU_IDS {
+        if id == *sevid {
+            return Ok(SevGeneration::Sev);
+        }
+    }
+
+    for esid in &ES_CPU_IDS {
+        if id == *esid {
+            return Ok(SevGeneration::Es);
+        }
+    }
+
+    for snpid in &SNP_CPU_IDS {
+        if id == *snpid {
+            return Ok(SevGeneration::Snp);
+        }
+    }
+
+    Err(error::Context::new(
+        "unable to find AMD processor generation",
+        Box::<Error>::new(ErrorKind::InvalidData.into()),
+    ))
+}
+
+fn get_id(cpuidstr: String) -> Result<usize> {
+    let arr = cpuidstr.split(' ');
+
+    for s in arr {
+        let s = s.to_string();
+        let mut numeric = true;
+        for c in s.chars() {
+            if !c.is_numeric() {
+                numeric = false;
+            }
+        }
+        if !numeric {
+            continue;
+        }
+
+        return s
+            .parse::<usize>()
+            .context("unable to parse CPUID substring into usize");
+    }
+
+    Err(error::Context::new(
+        "unable to find AMD processor generation",
+        Box::<Error>::new(ErrorKind::InvalidData.into()),
+    ))
 }
