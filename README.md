@@ -46,7 +46,7 @@ Probes processor, sysfs, and KVM for AMD SEV, SEV-ES, and SEV-SNP related featur
 
 ```console
 $ sevctl ok {sev, es, snp}   // Probes support for the generation specified.
-$ sevctl ok                  // Probes for SEV, SEV-ES, and SEV-SNP support.
+$ sevctl ok                  // Probes support for the host hardware's generation.
 ```
 
 ### provision
