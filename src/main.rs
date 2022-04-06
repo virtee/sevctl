@@ -105,6 +105,7 @@ mod error;
 mod http;
 mod ok;
 mod session;
+mod vmsa;
 
 use error::{Contextual, Result};
 
@@ -121,6 +122,8 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
+
+use crate::vmsa::*;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
@@ -216,6 +219,9 @@ enum SevctlCmd {
         #[structopt(long, parse(from_os_str), help = "Read CA chain from specified file")]
         ca: Option<PathBuf>,
     },
+
+    #[structopt(about = "VMSA-related subcommands")]
+    Vmsa(VmsaCmd),
 }
 
 fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
@@ -321,6 +327,9 @@ fn main() {
         SevctlCmd::Session { name, pdh, policy } => session::cmd(name, pdh, policy),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
+        SevctlCmd::Vmsa(option) => match option {
+            VmsaCmd::Build(args) => vmsa::build::cmd(args),
+        },
     };
 
     if let Err(err) = status {
