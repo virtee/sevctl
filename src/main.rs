@@ -103,6 +103,8 @@
 
 mod error;
 mod http;
+mod ok;
+mod session;
 
 use error::{Contextual, Result};
 
@@ -119,9 +121,6 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
-
-mod ok;
-mod session;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
