@@ -4,8 +4,8 @@ version = "0.2.0"
 authors = ["The Enarx Project Developers"]
 edition = "2018"
 license = "Apache-2.0"
-homepage = "https://github.com/enarx/sevctl"
-repository = "https://github.com/enarx/sevctl"
+homepage = "https://github.com/virtee/sevctl"
+repository = "https://github.com/virtee/sevctl"
 description = "Administrative utility for AMD SEV"
 readme = "README.md"
 keywords = ["amd", "sev"]
@@ -15,14 +15,14 @@ rust-version = "1.51"
 
 [badges]
 # See https://doc.rust-lang.org/cargo/reference/manifest.html#the-badges-section
-github = { repository = "enarx/sevctl", workflow = "test" }
-#github = { repository = "enarx/sevctl", workflow = "lint" }
+github = { repository = "virtee/sevctl", workflow = "test" }
+#github = { repository = "virtee/sevctl", workflow = "lint" }
 maintenance = { status = "actively-developed" }
-is-it-maintained-issue-resolution = { repository = "enarx/sevctl" }
-is-it-maintained-open-issues = { repository = "enarx/sevctl" }
+is-it-maintained-issue-resolution = { repository = "virtee/sevctl" }
+is-it-maintained-open-issues = { repository = "virtee/sevctl" }
 
 [dependencies]
-sev = { git = "https://github.com/enarx/sev.git", branch = "main", features = ["openssl"] }
+sev = { git = "https://github.com/virtee/sev.git", branch = "main", features = ["openssl"] }
 structopt = "0.3"
 codicon = "3.0"
 colorful = "0.2.1"
