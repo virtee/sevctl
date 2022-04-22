@@ -1,6 +1,6 @@
-[![Workflow Status](https://github.com/enarx/sevctl/workflows/test/badge.svg)](https://github.com/enarx/sevctl/actions?query=workflow%3A%22test%22)
-[![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/enarx/sevctl.svg)](https://isitmaintained.com/project/enarx/sevctl "Average time to resolve an issue")
-[![Percentage of issues still open](https://isitmaintained.com/badge/open/enarx/sevctl.svg)](https://isitmaintained.com/project/enarx/sevctl "Percentage of issues still open")
+[![Workflow Status](https://github.com/virtee/sevctl/workflows/test/badge.svg)](https://github.com/virtee/sevctl/actions?query=workflow%3A%22test%22)
+[![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/virtee/sevctl.svg)](https://isitmaintained.com/project/virtee/sevctl "Average time to resolve an issue")
+[![Percentage of issues still open](https://isitmaintained.com/badge/open/virtee/sevctl.svg)](https://isitmaintained.com/project/virtee/sevctl "Percentage of issues still open")
 ![Maintenance](https://img.shields.io/badge/maintenance-activly--developed-brightgreen.svg)
 
 # sevctl
