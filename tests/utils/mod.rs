@@ -7,9 +7,20 @@ pub fn cargo_root_path(base: &str) -> String {
 }
 
 pub fn compare_files(actual: &str, expected: &str) {
-    let expected = cargo_root_path(expected);
+    let expected = &cargo_root_path(expected)[..];
+    let regenerate = std::env::var_os("SEVCTL_TEST_REGENERATE_OUTPUT").is_some();
     let data1 = std::fs::read(actual).unwrap();
-    let data2 = std::fs::read(&expected[..]).unwrap();
+
+    if regenerate && !std::path::Path::new(expected).exists() {
+        std::fs::write(expected, &data1).unwrap();
+    }
+    let data2 = std::fs::read(expected).unwrap();
+
+    if data1 != data2 && regenerate {
+        std::fs::write(expected, &data1).unwrap();
+        return;
+    }
+
     assert_eq!(data1, data2);
 }
 
