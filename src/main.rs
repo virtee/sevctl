@@ -329,6 +329,7 @@ fn main() {
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
         SevctlCmd::Vmsa(option) => match option {
             VmsaCmd::Build(args) => vmsa::build::cmd(args),
+            VmsaCmd::Update(args) => vmsa::update::cmd(args),
         },
     };
 
