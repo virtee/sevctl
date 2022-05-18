@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod build;
+pub mod update;
 
 use super::*;
 
@@ -24,6 +25,7 @@ use uuid::{uuid, Uuid};
 #[derive(StructOpt)]
 pub enum VmsaCmd {
     Build(BuildUpdateCmdArgs),
+    Update(BuildUpdateCmdArgs),
 }
 
 // cmdline arguments for the "build" and "update" subcommands.
