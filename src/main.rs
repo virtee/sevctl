@@ -113,6 +113,14 @@
 //! ```console
 //! $ sevctl vmsa build EXISTING-VMSA0.bin --userspace qemu --family 25 --stepping 1 --model 1 --firmware /path/to/OVMF.amdsev.fd --cpu 0
 //! ```
+//!
+//! ## vmsa show
+//!
+//! Print an existing VMSA binary file as JSON
+//!
+//! ```console
+//! $ sevctl vmsa show EXISTING-VMSA0.bin
+//! ```
 
 #![deny(clippy::all)]
 #![deny(missing_docs)]
@@ -345,6 +353,7 @@ fn main() {
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
         SevctlCmd::Vmsa(option) => match option {
             VmsaCmd::Build(args) => vmsa::build::cmd(args),
+            VmsaCmd::Show(args) => vmsa::show::cmd(args),
             VmsaCmd::Update(args) => vmsa::update::cmd(args),
         },
     };
