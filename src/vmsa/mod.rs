@@ -238,6 +238,7 @@ const ATTR_E_MASK: u16 = 1 << ATTR_E_SHIFT;
 const ATTR_W_MASK: u16 = 1 << ATTR_W_SHIFT;
 
 // Linux struct vmcb_save_area (arch/x86/include/asm/svm.h)
+// https://github.com/torvalds/linux/blob/eaea45fc0e7b6ae439526b4a41d91230c8517336/arch/x86/include/asm/svm.h#L274
 #[repr(C, packed)]
 #[derive(Serialize, Deserialize)]
 pub struct Vmsa {
@@ -252,13 +253,13 @@ pub struct Vmsa {
     idtr: VmcbSegment,
     tr: VmcbSegment,
     #[serde(with = "BigArray")]
-    rsvd1: [u8; 43],
+    reserved_1: [u8; 43],
     cpl: u8,
-    rsvd2: [u8; 4],
+    reserved_2: [u8; 4],
     efer: u64,
     #[serde(with = "BigArray")]
-    rsvd3: [u8; 104],
-    xss: u64, /* Valid for SEV-ES only */
+    reserved_3: [u8; 104],
+    xss: u64,
     cr4: u64,
     cr3: u64,
     cr0: u64,
@@ -267,9 +268,9 @@ pub struct Vmsa {
     rflags: u64,
     rip: u64,
     #[serde(with = "BigArray")]
-    rsvd4: [u8; 88],
+    reserved_4: [u8; 88],
     rsp: u64,
-    rsvd5: [u8; 24],
+    reserved_5: [u8; 24],
     rax: u64,
     star: u64,
     lstar: u64,
@@ -280,28 +281,24 @@ pub struct Vmsa {
     sysenter_esp: u64,
     sysenter_eip: u64,
     cr2: u64,
-    rsvd6: [u8; 32],
+    reserved_6: [u8; 32],
     g_pat: u64,
     dbgctl: u64,
     br_from: u64,
     br_to: u64,
     last_excp_from: u64,
     last_excp_to: u64,
-
-    // The following part of the save area is valid only for
-    // SEV-ES guests when referenced through the GHCB or for
-    // saving to the host save area.
     #[serde(with = "BigArray")]
-    rsvd7: [u8; 72],
-    spec_ctrl: u32, /* Guest version of SPEC_CTRL at 0x2E0 */
-    rsvd8: [u8; 4],
+    reserved_7: [u8; 72],
+    spec_ctrl: u32,
+    reserved_7b: [u8; 4],
     pkru: u32,
-    rsvd9: [u8; 20],
-    rsvd10: u64, /* rax already available at 0x01f8 */
+    reserved_7a: [u8; 20],
+    reserved_8: u64,
     rcx: u64,
     rdx: u64,
     rbx: u64,
-    rsvd11: u64, /* rsp already available at 0x01d8 */
+    reserved_9: u64,
     rbp: u64,
     rsi: u64,
     rdi: u64,
@@ -313,13 +310,13 @@ pub struct Vmsa {
     r13: u64,
     r14: u64,
     r15: u64,
-    rsvd12: [u8; 16],
+    reserved_10: [u8; 16],
     sw_exit_code: u64,
     sw_exit_info_1: u64,
     sw_exit_info_2: u64,
     sw_scratch: u64,
     #[serde(with = "BigArray")]
-    rsvd13: [u8; 56],
+    reserved_11: [u8; 56],
     xcr0: u64,
     valid_bitmap: [u8; 16],
     x87_state_gpa: u64,
