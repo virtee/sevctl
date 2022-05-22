@@ -10,7 +10,7 @@ use std::mem::MaybeUninit;
 use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
-#[derive(StructOpt, PartialEq)]
+#[derive(StructOpt, PartialEq, Eq)]
 pub enum SevGeneration {
     #[structopt(about = "Secure Encrypted Virtualization")]
     Sev,
@@ -52,7 +52,7 @@ struct TestResult {
     mesg: Option<String>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 enum TestState {
     Pass,
     Skip,
