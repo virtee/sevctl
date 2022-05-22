@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod build;
+pub mod show;
 pub mod update;
 
 use super::*;
@@ -25,7 +26,14 @@ use uuid::{uuid, Uuid};
 #[derive(StructOpt)]
 pub enum VmsaCmd {
     Build(BuildUpdateCmdArgs),
+    Show(VmsaShowCmdArgs),
     Update(BuildUpdateCmdArgs),
+}
+
+#[derive(StructOpt, Debug)]
+pub struct VmsaShowCmdArgs {
+    #[structopt(help = "VMSA binary file to print as JSON")]
+    pub filename: String,
 }
 
 // cmdline arguments for the "build" and "update" subcommands.

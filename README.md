@@ -119,4 +119,12 @@ Update an existing VMSA binary file in place, with the passed options.
 $ sevctl vmsa build EXISTING-VMSA0.bin --userspace qemu --family 25 --stepping 1 --model 1 --firmware /path/to/OVMF.amdsev.fd --cpu 0
 ```
 
+### vmsa show
+
+Print an existing VMSA binary file as JSON
+
+```console
+$ sevctl vmsa show EXISTING-VMSA0.bin
+```
+
 License: Apache-2.0
