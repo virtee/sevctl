@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fs;
-use std::mem::size_of;
-use std::slice::from_raw_parts_mut;
-
 use crate::error::Contextual;
 use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm, Vmsa};
 
@@ -38,12 +34,7 @@ pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
         }
     }
 
-    let vmsa: &mut [u8] =
-        unsafe { from_raw_parts_mut(&vmsa as *const Vmsa as *mut u8, size_of::<Vmsa>()) };
-    let buf: &mut [u8] = &mut [0; 4096];
-    buf[..size_of::<Vmsa>()].copy_from_slice(vmsa);
-
-    fs::write(args.filename, buf).context("could not write VMSA buffer")?;
+    vmsa.to_file(&args.filename)?;
 
     Ok(())
 }

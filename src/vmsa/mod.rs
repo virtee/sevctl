@@ -445,6 +445,22 @@ impl Vmsa {
             .context(format!("Failed to deserialize filename={}", filename))?;
         Ok(vmsa)
     }
+
+    fn to_file(&self, filename: &str) -> Result<()> {
+        //! Save binary Vmsa content to the passed filename
+
+        let vmsa_buf = bincode::serialize(self).context("Failed to serialize Vmsa")?;
+
+        // Pad to 4096 bytes
+        let buf: &mut [u8] = &mut [0; 4096];
+        buf[..std::mem::size_of::<Vmsa>()].copy_from_slice(&vmsa_buf[..]);
+
+        fs::write(filename, buf).context(format!(
+            "could not write VMSA buffer to filename={}",
+            filename
+        ))?;
+        Ok(())
+    }
 }
 
 impl Default for Vmsa {
