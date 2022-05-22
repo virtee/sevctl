@@ -97,6 +97,22 @@
 //! ```console
 //! $ sevctl verify
 //! ```
+//!
+//! ## vmsa build
+//!
+//! Build a VMSA binary blob and save to the specified filename.
+//!
+//! ```console
+//! $ sevctl vmsa build NEW-VMSA0.bin --userspace qemu --family 25 --stepping 1 --model 1 --firmware /path/to/OVMF.amdsev.fd --cpu 0
+//! ```
+//!
+//! ## vmsa update
+//!
+//! Update an existing VMSA binary file in place, with the passed options.
+//!
+//! ```console
+//! $ sevctl vmsa build EXISTING-VMSA0.bin --userspace qemu --family 25 --stepping 1 --model 1 --firmware /path/to/OVMF.amdsev.fd --cpu 0
+//! ```
 
 #![deny(clippy::all)]
 #![deny(missing_docs)]
