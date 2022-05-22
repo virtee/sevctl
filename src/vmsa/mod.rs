@@ -434,6 +434,17 @@ impl Vmsa {
         self.rip = u64::from(reset_ip);
         self.cs.base = u64::from(reset_cs);
     }
+
+    fn from_file(filename: &str) -> Result<Vmsa> {
+        //! Read binary content from the passed filename and deserialize
+        //! it into a Vmsa
+
+        let data =
+            std::fs::read(filename).context(format!("Failed to read filename={}", filename))?;
+        let vmsa = bincode::deserialize(&data[..])
+            .context(format!("Failed to deserialize filename={}", filename))?;
+        Ok(vmsa)
+    }
 }
 
 impl Default for Vmsa {

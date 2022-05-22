@@ -2,15 +2,13 @@
 
 use std::fs;
 use std::mem::size_of;
-use std::ptr;
 use std::slice::from_raw_parts_mut;
 
 use crate::error::Contextual;
 use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm, Vmsa};
 
 pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
-    let vmsa = fs::read(&args.filename).context("couldn't read from file")?;
-    let mut vmsa = unsafe { ptr::read(vmsa.as_ptr() as *mut Vmsa) };
+    let mut vmsa = Vmsa::from_file(&args.filename)?;
 
     let family: u64 = args.family.unwrap_or(0);
     let model: u64 = args.model.unwrap_or(0);
