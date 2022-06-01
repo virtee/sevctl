@@ -500,8 +500,9 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "0.2.0"
-source = "git+https://github.com/virtee/sev.git?branch=main#e32dfa5370d507825c3a8199d52ad25f1a6e45db"
+source = "git+https://github.com/virtee/sev.git?branch=main#55fd3e0680110b142a809f7b96ac03409326aebe"
 dependencies = [
+ "bincode",
  "bitfield",
  "bitflags",
  "codicon",
@@ -509,6 +510,7 @@ dependencies = [
  "iocuddle",
  "openssl",
  "serde",
+ "serde-big-array",
  "serde_bytes",
 ]
 
@@ -525,7 +527,6 @@ dependencies = [
  "native-tls",
  "openssl",
  "serde",
- "serde-big-array",
  "serde_json",
  "sev",
  "structopt",

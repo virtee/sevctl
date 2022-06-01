@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Contextual;
-use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm, Vmsa};
+use crate::error::{Context, Contextual};
+use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm};
+
+use sev::vmsa::*;
 
 pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
     let mut vmsa = Vmsa::default();
@@ -34,7 +36,12 @@ pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
         }
     }
 
-    vmsa.to_file(&args.filename)?;
+    if let VmsaRWResult::IoErr(e) = vmsa.to_file(&args.filename) {
+        return Err(Context::new(
+            "error writing the VMSA to a file",
+            Box::new(e),
+        ));
+    }
 
     Ok(())
 }
