@@ -246,7 +246,7 @@ fn collect_tests() -> Vec<Test> {
                             gen_mask: SEV_MASK,
                             run: Box::new(|| {
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
-                                let field = res.ebx & 0b1111_1100_0000 >> 6;
+                                let field = (res.ebx & 0b1111_1100_0000) >> 6;
 
                                 TestResult {
                                     name: "Physical address bit reduction",
