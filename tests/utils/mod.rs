@@ -30,6 +30,14 @@ pub fn run_sevctl(arglist: &[&str]) -> String {
         .output()
         .unwrap();
 
-    assert!(output.status.success());
-    return String::from_utf8(output.stdout).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    if !output.status.success() {
+        panic!(
+            "\nsevctl command failed.\narglist={:?}\nstdout={}\nstderr={}\n",
+            arglist, stdout, stderr
+        );
+    }
+
+    stdout
 }
