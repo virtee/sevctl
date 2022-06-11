@@ -126,6 +126,7 @@
 #![deny(missing_docs)]
 
 mod http;
+mod measurement;
 mod ok;
 mod session;
 mod vmsa;
@@ -245,6 +246,9 @@ enum SevctlCmd {
 
     #[structopt(about = "VMSA-related subcommands")]
     Vmsa(VmsaCmd),
+
+    #[structopt(about = "Measurement subcommands")]
+    Measurement(measurement::MeasurementCmd),
 }
 
 fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
@@ -329,11 +333,16 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
 }
 
 fn main() {
+    env_logger::init();
+
     let sevctl = Sevctl::from_args();
     let status = match sevctl.cmd {
         SevctlCmd::Export { full, destination } => export::cmd(full, destination),
         SevctlCmd::Generate { cert, key } => generate::cmd(cert, key),
         SevctlCmd::Ok { gen } => ok::cmd(gen, sevctl.quiet),
+        SevctlCmd::Measurement(option) => match option {
+            measurement::MeasurementCmd::Build(args) => measurement::build_cmd(args),
+        },
         SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Rotate => rotate::cmd(),
