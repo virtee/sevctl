@@ -50,10 +50,7 @@ impl SevGeneration {
             2 => Ok(Self::Es),  // Rome.
             3 => Ok(Self::Snp), // Milan.
 
-            _ => Err(error::Context::new(
-                "invalid processor model number",
-                Box::<Error>::new(ErrorKind::InvalidData.into()),
-            )), // Invalid.
+            _ => Err(anyhow::anyhow!("invalid processor model number")), // Invalid.
         }
     }
 }
@@ -400,9 +397,8 @@ pub fn cmd(gen: Option<SevGeneration>, quiet: bool) -> Result<()> {
     if run_test(&tests, 0, quiet, mask) {
         Ok(())
     } else {
-        Err(error::Context::new(
-            "One or more tests in sevctl-ok reported a failure",
-            Box::<Error>::new(ErrorKind::InvalidData.into()),
+        Err(anyhow::anyhow!(
+            "One or more tests in sevctl-ok reported a failure"
         ))
     }
 }
@@ -525,7 +521,7 @@ fn dev_sev_rw(file: &mut fs::OpenOptions) -> Result<()> {
 
     match file.open(path) {
         Ok(_) => Ok(()),
-        Err(e) => Err(error::Context::new(&e.to_string(), Box::new(e))),
+        Err(e) => Err(anyhow::Error::new(Box::new(e))),
     }
 }
 
@@ -658,8 +654,5 @@ fn get_id(cpuidstr: String) -> Result<usize> {
             .context("unable to parse CPUID substring into usize");
     }
 
-    Err(error::Context::new(
-        "unable to find AMD processor generation",
-        Box::<Error>::new(ErrorKind::InvalidData.into()),
-    ))
+    Err(anyhow::anyhow!("unable to find AMD processor generation"))
 }

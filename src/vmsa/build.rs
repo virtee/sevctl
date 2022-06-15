@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Contextual;
 use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm};
 
+use anyhow::Context;
 use sev::vmsa::*;
 
 pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
