@@ -126,10 +126,7 @@ impl Ovmf {
         let actual = actual.to_u128_le();
 
         if expect != actual {
-            return Err(error::Context::new(
-                "actual OVMF UUID does not meet expected",
-                Box::<Error>::new(ErrorKind::InvalidData.into()),
-            ));
+            return Err(anyhow::anyhow!("actual OVMF UUID does not meet expected"));
         }
 
         let len = usize::from(u16::from_le_bytes(
@@ -139,10 +136,7 @@ impl Ovmf {
         ));
 
         if len == 0 {
-            return Err(error::Context::new(
-                "OVMF table - zero length",
-                Box::<Error>::new(ErrorKind::InvalidData.into()),
-            ));
+            return Err(anyhow::anyhow!("OVMF table - zero length"));
         }
 
         let entry_start = size - (len + 32);
@@ -174,10 +168,7 @@ impl Ovmf {
 
     fn reset_addr(&self) -> Result<u32> {
         if !self.entries.contains_key(&OVMF_SEV_INFO_BLOCK_GUID) {
-            return Err(error::Context::new(
-                "OVMF table - zero length",
-                Box::<Error>::new(ErrorKind::InvalidData.into()),
-            ));
+            return Err(anyhow::anyhow!("OVMF table - zero length"));
         }
 
         let entry = self.entries.get(&OVMF_SEV_INFO_BLOCK_GUID).unwrap();

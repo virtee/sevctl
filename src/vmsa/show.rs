@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Contextual;
 use crate::VmsaShowCmdArgs;
 
+use anyhow::Context;
 use sev::vmsa::*;
 
 pub fn cmd(args: VmsaShowCmdArgs) -> super::Result<()> {
