@@ -500,9 +500,8 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "0.2.0"
-source = "git+https://github.com/virtee/sev.git?branch=main#55fd3e0680110b142a809f7b96ac03409326aebe"
+source = "git+https://github.com/virtee/sev.git?branch=main#b8c36867cabb1774c52b743979e49592a5599c36"
 dependencies = [
- "bincode",
  "bitfield",
  "bitflags",
  "codicon",
