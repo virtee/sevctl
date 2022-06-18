@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{Contextual, Result};
+use anyhow::Context;
 
 use std::convert::{From, TryFrom};
 use std::fs;
@@ -13,7 +13,7 @@ use ::sev::{launch::sev, session};
 
 use codicon::{Decoder, Encoder};
 
-pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> Result<()> {
+pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()> {
     let (tik_fname, tek_fname, godh_fname, session_fname) = file_names(name);
 
     let session = session::Session::try_from(sev::Policy::from(policy))

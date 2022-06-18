@@ -125,13 +125,12 @@
 #![deny(clippy::all)]
 #![deny(missing_docs)]
 
-mod error;
 mod http;
 mod ok;
 mod session;
 mod vmsa;
 
-use error::{Contextual, Result};
+use anyhow::{Context, Result};
 
 use structopt::StructOpt;
 
@@ -142,7 +141,7 @@ use ::sev::firmware::{Firmware, PlatformStatusFlags, Status};
 use ::sev::Generation;
 
 use std::fs::File;
-use std::io::{Error, ErrorKind};
+use std::io;
 use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
@@ -249,9 +248,6 @@ enum SevctlCmd {
 }
 
 fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
-    use error::Context;
-    use std::error::Error;
-
     let mut err_stack = vec![];
 
     for attempt in 1..4 {
@@ -261,15 +257,15 @@ fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
                     .context(format!("failed to decode {} certificate", usage))
             }
             Err(http::Error::Status(_, rsp)) => {
-                err_stack.push(Context::new(
-                    format!("http request #{} failed", attempt).as_str(),
-                    format!("{:?}", rsp).into(),
-                ));
+                err_stack.push(
+                    anyhow::anyhow!(format!("{:?}", rsp))
+                        .context(format!("http request #{} failed", attempt)),
+                );
                 let retry: Option<u16> = rsp.header("retry-after").and_then(|h| h.parse().ok());
                 let retry = retry.unwrap_or(5);
                 std::thread::sleep(Duration::from_secs(retry as _));
             }
-            Err(e) => return Err(Context::new("transport error", Box::new(e))),
+            Err(e) => return Err(anyhow::Error::new(e).context("transport error")),
         }
     }
 
@@ -285,10 +281,8 @@ fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
                 format!("{}: {}", e, cause)
             })
             .collect::<Vec<String>>();
-        Context::new(
-            &format!("final http request failed: {}", e),
-            prev_attempts.join("; ").into(),
-        )
+        anyhow::anyhow!(prev_attempts.join("; "))
+            .context(format!("final http request failed: {}", e))
     })?;
 
     sev::Certificate::decode(rsp.into_reader(), ())
@@ -302,7 +296,7 @@ fn firmware() -> Result<Firmware> {
 fn platform_status() -> Result<Status> {
     firmware()?
         .platform_status()
-        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("unable to fetch platform status")
 }
 
@@ -311,12 +305,12 @@ fn chain() -> Result<sev::Chain> {
 
     let mut chain = firmware()?
         .pdh_cert_export()
-        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("unable to export SEV certificates")?;
 
     let id = firmware()?
         .get_identifier()
-        .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+        .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
         .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
 
@@ -329,12 +323,7 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
     use std::convert::TryFrom;
 
     Generation::try_from(chain)
-        .map_err(|_| {
-            Error::new(
-                ErrorKind::NotFound,
-                "could not find a matching builtin certificate",
-            )
-        })
+        .map_err(|_| anyhow::anyhow!("could not find a matching builtin certificate"))
         .context("failed to deduce platform generation")
         .map(|g| g.into())
 }
@@ -363,11 +352,6 @@ fn main() {
             exit(1);
         }
         eprintln!("error: {}", err);
-        let mut err: &(dyn std::error::Error + 'static) = &err;
-        while let Some(cause) = err.source() {
-            eprintln!("caused by: {}", cause);
-            err = cause;
-        }
 
         exit(1);
     }
@@ -379,7 +363,7 @@ mod reset {
     pub fn cmd() -> Result<()> {
         firmware()?
             .platform_reset()
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("error resetting platform")
     }
 }
@@ -502,10 +486,7 @@ mod verify {
         if err as i32 == 0 {
             Ok(())
         } else {
-            Err(error::Context::new(
-                "SEV/CA certificate verification failed",
-                Box::<Error>::new(ErrorKind::InvalidData.into()),
-            ))
+            Err(anyhow::anyhow!("SEV/CA certificate verification failed"))
         }
     }
 
@@ -513,7 +494,7 @@ mod verify {
     where
         P: Display,
         C: Display,
-        &'a P: TryInto<Usage, Error = Error>,
+        &'a P: TryInto<Usage, Error = io::Error>,
         (&'a P, &'a P): Verifiable,
         (&'a P, &'a C): Verifiable,
     {
@@ -593,7 +574,7 @@ mod rotate {
     pub fn cmd() -> Result<()> {
         firmware()?
             .pdh_generate()
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("unable to rotate PDH")?;
 
         Ok(())
@@ -620,13 +601,13 @@ mod provision {
 
         let mut pek = fw
             .pek_csr()
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("cross signing request failed")?;
         prv_key
             .sign(&mut pek)
             .context("failed to sign PEK with OCA private key")?;
         fw.pek_cert_import(&pek, &cert)
-            .map_err(|e| Error::new(ErrorKind::Other, format!("{:?}", e)))
+            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
             .context("failed to import the newly-signed PEK")?;
 
         Ok(())
