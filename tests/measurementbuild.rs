@@ -10,6 +10,11 @@ struct BuildArgs<'a> {
 
     launch_digest: Option<&'a str>,
 
+    firmware: Option<&'a str>,
+    kernel: Option<&'a str>,
+    initrd: Option<&'a str>,
+    cmdline: Option<&'a str>,
+
     outfile: Option<&'a str>,
 }
 
@@ -37,6 +42,24 @@ fn run_build(args: &BuildArgs) -> String {
         sevctl_args.push("--launch-digest");
         sevctl_args.push(ld);
     }
+
+    if let Some(firmware) = args.firmware {
+        sevctl_args.push("--firmware");
+        sevctl_args.push(firmware);
+    }
+    if let Some(kernel) = args.kernel {
+        sevctl_args.push("--kernel");
+        sevctl_args.push(kernel);
+    }
+    if let Some(initrd) = args.initrd {
+        sevctl_args.push("--initrd");
+        sevctl_args.push(initrd);
+    }
+    if let Some(cmdline) = args.cmdline {
+        sevctl_args.push("--cmdline");
+        sevctl_args.push(cmdline);
+    }
+
     if let Some(val) = &args.outfile {
         sevctl_args.push("--outfile");
         sevctl_args.push(val);
@@ -63,6 +86,10 @@ fn measurement_build() {
         nonce: "wxP6tRHCFrFQWxsuqZA8QA==",
         tik: "tests/data/measurement/tik1.bin",
         launch_digest: None,
+        firmware: None,
+        kernel: None,
+        initrd: None,
+        cmdline: None,
         outfile: None,
     };
 
@@ -82,4 +109,22 @@ fn measurement_build() {
         ..stdargs
     };
     test_build(expected, args_outfile);
+
+    // Test --firmware PATH
+    let args_firmware = BuildArgs {
+        firmware: Some("tests/data/OVMF.amdsev.fd_trimmed_edk2-ovmf-20220126gitbb1bba3d77-4.el9"),
+        ..stdargs
+    };
+    let expected = "oMDewIouJSpbpNRHj7Mk3p08H2dPZQdsZMU14qIymBk=";
+    test_build(expected, BuildArgs { ..args_firmware });
+
+    // Test --firmware + --kernel everything
+    let args_kernel = BuildArgs {
+        kernel: Some("tests/data/measurement/vmlinuz-fake"),
+        initrd: Some("tests/data/measurement/initrd-fake"),
+        cmdline: Some("foo bar baz fake kernel=cmdline"),
+        ..args_firmware
+    };
+    let expected = "h3auYbWQnVW7EGLWN4Hf9SN0oEYMPU2sK4bLnefWPws=";
+    test_build(expected, args_kernel);
 }
