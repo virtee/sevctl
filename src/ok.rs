@@ -30,6 +30,32 @@ impl SevGeneration {
             SevGeneration::Snp => SEV_MASK | ES_MASK | SNP_MASK,
         }
     }
+
+    /// An AMD processor's generation can be found from the ID associated with the processor.
+    ///
+    /// For example:
+    ///
+    /// A 1st generation (Naples processor) has an ID of 7xx1, where the lower "1" indicates the
+    /// first generation of EPYC processors. This is extended with each new generation of AMD EPYC
+    /// processor:
+    ///     Naples: 1 (SEV)
+    ///     Rome: 2 (SEV, SEV-ES)
+    ///     Milan: 3 (SEV, SEV-ES, SEV-SNP)
+    ///
+    /// This function, given the processor's model number from the CPUID, returns which SEV
+    /// generation is supported by the processor.
+    fn from_model_id(id: usize) -> Result<Self> {
+        match id % 10 {
+            1 => Ok(Self::Sev), // Naples.
+            2 => Ok(Self::Es),  // Rome.
+            3 => Ok(Self::Snp), // Milan.
+
+            _ => Err(error::Context::new(
+                "invalid processor model number",
+                Box::<Error>::new(ErrorKind::InvalidData.into()),
+            )), // Invalid.
+        }
+    }
 }
 
 type TestFn = dyn Fn() -> TestResult;
@@ -588,10 +614,6 @@ fn memlock_rlimit() -> TestResult {
     }
 }
 
-const SEV_CPU_IDS: [usize; 3] = [7551, 7451, 7401];
-const ES_CPU_IDS: [usize; 2] = [7402, 7742];
-const SNP_CPU_IDS: [usize; 3] = [7713, 7763, 7413];
-
 fn current_gen() -> Result<SevGeneration> {
     let mut bytestr = Vec::with_capacity(48);
     let cpu_name = {
@@ -611,30 +633,9 @@ fn current_gen() -> Result<SevGeneration> {
     };
 
     let name = cpu_name.to_uppercase();
-    let id = get_id(name).context("couldn't convert CPU name to string")?;
+    let id = get_id(name).context("couldn't convert CPU model string to usize")?;
 
-    for sevid in &SEV_CPU_IDS {
-        if id == *sevid {
-            return Ok(SevGeneration::Sev);
-        }
-    }
-
-    for esid in &ES_CPU_IDS {
-        if id == *esid {
-            return Ok(SevGeneration::Es);
-        }
-    }
-
-    for snpid in &SNP_CPU_IDS {
-        if id == *snpid {
-            return Ok(SevGeneration::Snp);
-        }
-    }
-
-    Err(error::Context::new(
-        "unable to find AMD processor generation",
-        Box::<Error>::new(ErrorKind::InvalidData.into()),
-    ))
+    SevGeneration::from_model_id(id)
 }
 
 fn get_id(cpuidstr: String) -> Result<usize> {
