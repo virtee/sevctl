@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
 use structopt::StructOpt;
 
 use anyhow::Context;
@@ -24,11 +23,11 @@ pub struct BuildArgs {
     #[structopt(long, help = "SEV guest policy (int or hex)")]
     pub policy: String,
 
-    #[structopt(long, help = "Expected nonce in base64")]
+    #[structopt(long, help = "Expected nonce (path or base64)")]
     pub nonce: String,
 
-    #[structopt(long, parse(from_os_str), help = "Path to tik file")]
-    pub tik: PathBuf,
+    #[structopt(long, help = "tik data (path or base64)")]
+    pub tik: String,
 
     #[structopt(long, help = "Launch digest in base64")]
     pub launch_digest: Option<String>,
@@ -59,6 +58,22 @@ fn parse_hex_or_int(argname: &str, val: &str) -> super::Result<u32> {
     }
 }
 
+fn parse_base64_or_path(argname: &str, val: &str) -> super::Result<Vec<u8>> {
+    let result = if std::fs::metadata(val).is_ok() {
+        std::fs::read(val).context(format!("reading path {}={} failed", argname, val))
+    } else {
+        base64::decode(val).context(format!("failed to base64 decode {}={}", argname, val))
+    };
+
+    match result {
+        Ok(v) => {
+            log::debug!("{} base64: {}", argname, base64::encode(&v));
+            Ok(v)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let mut data: Vec<u8> = Vec::new();
 
@@ -69,9 +84,8 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let build_id = parse_hex_or_int("--build-id", &args.build_id)?;
     let policy = parse_hex_or_int("--policy", &args.policy)?;
 
-    let nonce = base64::decode(args.nonce).context("failed to base64 decode --nonce")?;
-    let tik =
-        std::fs::read(&args.tik).context(format!("failed to read file: {}", args.tik.display()))?;
+    let nonce = parse_base64_or_path("--nonce", &args.nonce)?;
+    let tik = parse_base64_or_path("--tik", &args.tik)?;
 
     data.push(0x4_u8);
     data.push(api_major.to_le_bytes()[0]);
