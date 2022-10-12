@@ -9,10 +9,12 @@ struct BuildArgs<'a> {
     tik: &'a str,
 
     launch_digest: Option<&'a str>,
+
+    outfile: Option<&'a str>,
 }
 
-fn run_build(args: BuildArgs) -> String {
-    let tik = utils::cargo_root_path(args.tik);
+fn run_build(args: &BuildArgs) -> String {
+    let tik = utils::cargo_root_path(&args.tik);
 
     let mut sevctl_args = vec![
         "measurement",
@@ -35,12 +37,19 @@ fn run_build(args: BuildArgs) -> String {
         sevctl_args.push("--launch-digest");
         sevctl_args.push(ld);
     }
+    if let Some(val) = &args.outfile {
+        sevctl_args.push("--outfile");
+        sevctl_args.push(val);
+    }
 
     utils::run_sevctl(&sevctl_args[..]).trim().to_string()
 }
 
 fn test_build(expected: &str, args: BuildArgs) {
-    let output = run_build(args);
+    let mut output = run_build(&args);
+    if let Some(val) = args.outfile {
+        output = base64::encode(std::fs::read(val).unwrap());
+    }
     assert_eq!(expected, output);
 }
 
@@ -54,6 +63,7 @@ fn measurement_build() {
         nonce: "wxP6tRHCFrFQWxsuqZA8QA==",
         tik: "tests/data/measurement/tik1.bin",
         launch_digest: None,
+        outfile: None,
     };
 
     // Test manually passed in --launch-digest
@@ -63,4 +73,13 @@ fn measurement_build() {
     };
     let expected = "lswbxWxI9gckya16JQvdFtpYmNO4b+3inAPpqsgoBI4=";
     test_build(expected, args1);
+
+    // Same as args1 test, but with --outfile.
+    let file = tempfile::NamedTempFile::new().unwrap();
+    let args_outfile = BuildArgs {
+        launch_digest: Some("xkvRAfyaSizgonxAjZIAkR8TmolUabBKQKb6KJCDDSM="),
+        outfile: Some(file.path().to_str().unwrap()),
+        ..stdargs
+    };
+    test_build(expected, args_outfile);
 }
