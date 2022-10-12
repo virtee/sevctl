@@ -47,10 +47,10 @@ fn test_build(expected: &str, args: BuildArgs) {
 #[test]
 fn measurement_build() {
     let stdargs = BuildArgs {
-        api_major: "1",
+        api_major: "0x01",
         api_minor: "40",
         build_id: "40",
-        policy: "3",
+        policy: "0x03",
         nonce: "wxP6tRHCFrFQWxsuqZA8QA==",
         tik: "tests/data/measurement/tik1.bin",
         launch_digest: None,

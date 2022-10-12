@@ -12,17 +12,17 @@ pub enum MeasurementCmd {
 
 #[derive(StructOpt, std::fmt::Debug)]
 pub struct BuildArgs {
-    #[structopt(long, help = "SEV host API major number")]
-    pub api_major: u8,
+    #[structopt(long, help = "SEV host API major (int or hex)")]
+    pub api_major: String,
 
-    #[structopt(long, help = "SEV host API minor number")]
-    pub api_minor: u8,
+    #[structopt(long, help = "SEV host API minor (int or hex)")]
+    pub api_minor: String,
 
-    #[structopt(long, help = "SEV host build ID number")]
-    pub build_id: u8,
+    #[structopt(long, help = "SEV host build ID (int or hex)")]
+    pub build_id: String,
 
-    #[structopt(long, help = "SEV guest policy integer value")]
-    pub policy: u32,
+    #[structopt(long, help = "SEV guest policy (int or hex)")]
+    pub policy: String,
 
     #[structopt(long, help = "Expected nonce in base64")]
     pub nonce: String,
@@ -41,20 +41,43 @@ fn build_digest(args: &BuildArgs) -> super::Result<Vec<u8>> {
     Err(anyhow::anyhow!("--launch-digest must be specified."))
 }
 
+fn parse_hex_or_int(argname: &str, val: &str) -> super::Result<u32> {
+    // Adapted from clap_num crate
+    let result = if val.to_ascii_lowercase().starts_with("0x") {
+        u32::from_str_radix(&val["0x".len()..], 16)
+    } else {
+        val.parse::<u32>()
+    };
+
+    match result {
+        Ok(v) => Ok(v),
+        _ => Err(anyhow::anyhow!(
+            "{}={} value must be int or hex",
+            argname,
+            val
+        )),
+    }
+}
+
 pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let mut data: Vec<u8> = Vec::new();
 
     let digest = build_digest(&args)?;
+
+    let api_major = parse_hex_or_int("--api-major", &args.api_major)?;
+    let api_minor = parse_hex_or_int("--api-minor", &args.api_minor)?;
+    let build_id = parse_hex_or_int("--build-id", &args.build_id)?;
+    let policy = parse_hex_or_int("--policy", &args.policy)?;
 
     let nonce = base64::decode(args.nonce).context("failed to base64 decode --nonce")?;
     let tik =
         std::fs::read(&args.tik).context(format!("failed to read file: {}", args.tik.display()))?;
 
     data.push(0x4_u8);
-    data.push(args.api_major);
-    data.push(args.api_minor);
-    data.push(args.build_id);
-    data.extend(args.policy.to_le_bytes());
+    data.push(api_major.to_le_bytes()[0]);
+    data.push(api_minor.to_le_bytes()[0]);
+    data.push(build_id.to_le_bytes()[0]);
+    data.extend(&policy.to_le_bytes());
     data.extend(digest);
     data.extend(&nonce);
 
