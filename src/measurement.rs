@@ -31,6 +31,9 @@ pub struct BuildArgs {
 
     #[structopt(long, help = "Launch digest in base64")]
     pub launch_digest: Option<String>,
+
+    #[structopt(long, help = "Optionally write binary content to filename")]
+    pub outfile: Option<String>,
 }
 
 fn build_digest(args: &BuildArgs) -> super::Result<Vec<u8>> {
@@ -102,7 +105,15 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
 
     sig.update(&data[..])?;
     let out = sig.sign_to_vec()?;
+    log::debug!("Signed measurement: {}", base64::encode(&out));
 
-    println!("{}", base64::encode(out));
+    if let Some(outfile) = &args.outfile {
+        std::fs::write(outfile, &out)
+            .context(format!("failed to write to --outfile={}", outfile))?;
+        println!("Wrote outfile: {}", outfile);
+    } else {
+        println!("{}", base64::encode(out));
+    }
+
     Ok(())
 }
