@@ -353,15 +353,28 @@ fn collect_tests() -> Vec<Test> {
                     run: Box::new(|| {
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let stat = if (res.eax & 0x1 << 2) != 0 {
-                            TestState::Pass
+                        let msr_flag = if (res.eax & 0x1 << 2) != 0 {
+                            "ENABLED".green()
                         } else {
-                            TestState::Fail
+                            "DISABLED".yellow()
                         };
 
+                        let name = format!("Page flush MSR: {}", msr_flag);
+
                         TestResult {
-                            name: "Page flush MSR".to_string(),
-                            stat,
+                            name,
+                            /*
+                             * Page flush MSR can be enabled/disabled.
+                             * Therefore, if the flag is disabled, it doesn't
+                             * necessarily mean that Page flush MSR *isn't*
+                             * supported, but rather that it is supported yet
+                             * currently disabled. So instead of returning
+                             * TestState::Fail (indicating that Page flush MSR
+                             * isn't supported), return TestState::Pass and
+                             * indicate to the caller whether it is enabled or
+                             * disabled.
+                             */
+                            stat: TestState::Pass,
                             mesg: None,
                         }
                     }),
