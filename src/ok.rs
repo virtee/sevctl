@@ -70,7 +70,7 @@ struct Test {
 }
 
 struct TestResult {
-    name: &'static str,
+    name: String,
     stat: TestState,
     mesg: Option<String>,
 }
@@ -111,7 +111,7 @@ fn collect_tests() -> Vec<Test> {
                 };
 
                 TestResult {
-                    name: "AMD CPU",
+                    name: "AMD CPU".to_string(),
                     stat,
                     mesg: None,
                 }
@@ -145,7 +145,7 @@ fn collect_tests() -> Vec<Test> {
                         };
 
                         TestResult {
-                            name: "Microcode support",
+                            name: "Microcode support".to_string(),
                             stat,
                             mesg: None,
                         }
@@ -165,7 +165,7 @@ fn collect_tests() -> Vec<Test> {
                         };
 
                         TestResult {
-                            name: "Secure Memory Encryption (SME)",
+                            name: "Secure Memory Encryption (SME)".to_string(),
                             stat,
                             mesg: None,
                         }
@@ -185,7 +185,7 @@ fn collect_tests() -> Vec<Test> {
                         };
 
                         TestResult {
-                            name: "Secure Encrypted Virtualization (SEV)",
+                            name: "Secure Encrypted Virtualization (SEV)".to_string(),
                             stat,
                             mesg: None,
                         }
@@ -204,7 +204,7 @@ fn collect_tests() -> Vec<Test> {
                                 };
 
                                 TestResult {
-                                    name: "Encrypted State (SEV-ES)",
+                                    name: "Encrypted State (SEV-ES)".to_string(),
                                     stat,
                                     mesg: None,
                                 }
@@ -224,7 +224,7 @@ fn collect_tests() -> Vec<Test> {
                                 };
 
                                 TestResult {
-                                    name: "Secure Nested Paging (SEV-SNP)",
+                                    name: "Secure Nested Paging (SEV-SNP)".to_string(),
                                     stat,
                                     mesg: None,
                                 }
@@ -242,7 +242,7 @@ fn collect_tests() -> Vec<Test> {
                                     };
 
                                     TestResult {
-                                        name: "VM Permission Levels",
+                                        name: "VM Permission Levels".to_string(),
                                         stat,
                                         mesg: None,
                                     }
@@ -255,7 +255,7 @@ fn collect_tests() -> Vec<Test> {
                                         let num_vmpls = (res.ebx & 0xF000) >> 12;
 
                                         TestResult {
-                                            name: "Number of VMPLs",
+                                            name: "Number of VMPLs".to_string(),
                                             stat: TestState::Pass,
                                             mesg: Some(format!("{}", num_vmpls)),
                                         }
@@ -272,7 +272,7 @@ fn collect_tests() -> Vec<Test> {
                                 let field = (res.ebx & 0b1111_1100_0000) >> 6;
 
                                 TestResult {
-                                    name: "Physical address bit reduction",
+                                    name: "Physical address bit reduction".to_string(),
                                     stat: TestState::Pass,
                                     mesg: Some(format!("{}", field)),
                                 }
@@ -287,7 +287,7 @@ fn collect_tests() -> Vec<Test> {
                                 let field = res.ebx & 0b11_1111;
 
                                 TestResult {
-                                    name: "C-bit location",
+                                    name: "C-bit location".to_string(),
                                     stat: TestState::Pass,
                                     mesg: Some(format!("{}", field)),
                                 }
@@ -302,7 +302,8 @@ fn collect_tests() -> Vec<Test> {
                                 let field = res.ecx;
 
                                 TestResult {
-                                    name: "Number of encrypted guests supported simultaneously",
+                                    name: "Number of encrypted guests supported simultaneously"
+                                        .to_string(),
                                     stat: TestState::Pass,
                                     mesg: Some(format!("{}", field)),
                                 }
@@ -318,7 +319,8 @@ fn collect_tests() -> Vec<Test> {
 
                                 TestResult {
                                     name:
-                                        "Minimum ASID value for SEV-enabled, SEV-ES disabled guest",
+                                        "Minimum ASID value for SEV-enabled, SEV-ES disabled guest"
+                                            .to_string(),
                                     stat: TestState::Pass,
                                     mesg: Some(format!("{}", field)),
                                 }
@@ -358,7 +360,7 @@ fn collect_tests() -> Vec<Test> {
                         };
 
                         TestResult {
-                            name: "Page flush MSR",
+                            name: "Page flush MSR".to_string(),
                             stat,
                             mesg: None,
                         }
@@ -453,7 +455,7 @@ fn emit_result(res: &TestResult, level: usize, quiet: bool) {
 fn test_gen_not_included(test: &Test, level: usize, quiet: bool) {
     if !quiet {
         let tr_skip = TestResult {
-            name: test.name,
+            name: test.name.to_string(),
             stat: TestState::Skip,
             mesg: None,
         };
@@ -473,7 +475,7 @@ fn emit_skip(tests: &[Test], level: usize, quiet: bool) {
     if !quiet {
         for t in tests {
             let tr_skip = TestResult {
-                name: t.name,
+                name: t.name.to_string(),
                 stat: TestState::Skip,
                 mesg: None,
             };
@@ -497,7 +499,7 @@ fn dev_sev_r() -> TestResult {
     };
 
     TestResult {
-        name: "Reading /dev/sev",
+        name: "Reading /dev/sev".to_string(),
         stat,
         mesg: Some(mesg),
     }
@@ -510,7 +512,7 @@ fn dev_sev_w() -> TestResult {
     };
 
     TestResult {
-        name: "Writing /dev/sev",
+        name: "Writing /dev/sev".to_string(),
         stat,
         mesg: Some(mesg),
     }
@@ -544,7 +546,7 @@ fn has_kvm_support() -> TestResult {
     };
 
     TestResult {
-        name: "KVM supported",
+        name: "KVM supported".to_string(),
         stat,
         mesg: Some(mesg),
     }
@@ -579,7 +581,7 @@ fn sev_enabled_in_kvm() -> TestResult {
     };
 
     TestResult {
-        name: "SEV enabled in KVM",
+        name: "SEV enabled in KVM".to_string(),
         stat,
         mesg: Some(mesg),
     }
@@ -604,7 +606,7 @@ fn memlock_rlimit() -> TestResult {
     };
 
     TestResult {
-        name: "Memlock resource limit",
+        name: "Memlock resource limit".to_string(),
         stat,
         mesg: Some(mesg),
     }
