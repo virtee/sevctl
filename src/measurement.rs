@@ -43,6 +43,13 @@ pub struct BuildArgs {
     #[structopt(long, help = "Kernel commandline")]
     pub cmdline: Option<String>,
 
+    #[structopt(long, help = "Number of virtual CPUs")]
+    pub num_cpus: Option<u32>,
+    #[structopt(long, help = "path to VMSA state for boot CPU")]
+    pub vmsa_cpu0: Option<PathBuf>,
+    #[structopt(long, help = "path to VMSA state for additional CPUs")]
+    pub vmsa_cpu1: Option<PathBuf>,
+
     #[structopt(long, help = "Optionally write binary content to filename")]
     pub outfile: Option<String>,
 }
@@ -122,7 +129,49 @@ fn build_kernel_table(args: &BuildArgs) -> super::Result<Vec<u8>> {
     Ok(table)
 }
 
-fn build_digest(args: &BuildArgs) -> super::Result<Vec<u8>> {
+fn build_cpu_state(args: &BuildArgs, policy: &u32) -> super::Result<Vec<u8>> {
+    // Check if SEV-ES policy bit is set
+    if (*policy & 0x04) == 0 {
+        return Ok(Vec::new());
+    }
+
+    if args.num_cpus.is_none() {
+        return Err(anyhow::anyhow!(
+            "SEV-ES policy bit is set, CPU/VMSA info must be specified"
+        ));
+    }
+
+    if args.vmsa_cpu0.is_none() || args.vmsa_cpu1.is_none() {
+        return Err(anyhow::anyhow!(
+            "--num-cpus, --vmsa-cpu0, --vmsa-cpu1 must be specified together"
+        ));
+    }
+
+    let num_cpus = args.num_cpus.as_ref().unwrap();
+    let vmsa_cpu0_filename = args.vmsa_cpu0.as_ref().unwrap();
+    let vmsa_cpu1_filename = args.vmsa_cpu1.as_ref().unwrap();
+    let vmsa_cpu0 = std::fs::read(vmsa_cpu0_filename).context(format!(
+        "failed to read file: {}",
+        vmsa_cpu0_filename.display()
+    ))?;
+    let vmsa_cpu1 = std::fs::read(vmsa_cpu1_filename).context(format!(
+        "failed to read file: {}",
+        vmsa_cpu1_filename.display()
+    ))?;
+
+    let mut ret: Vec<u8> = Vec::new();
+    ret.extend(vmsa_cpu0);
+
+    let mut count = std::cmp::max(num_cpus - 1, 0);
+    while count > 0 {
+        ret.extend(&vmsa_cpu1);
+        count -= 1;
+    }
+
+    Ok(ret)
+}
+
+fn build_digest(args: &BuildArgs, policy: &u32) -> super::Result<Vec<u8>> {
     if let Some(ld) = &args.launch_digest {
         return base64::decode(ld).context("failed to base64 decode --launch-digest");
     }
@@ -138,6 +187,7 @@ fn build_digest(args: &BuildArgs) -> super::Result<Vec<u8>> {
         std::fs::read(firmware).context(format!("failed to read file: {}", &firmware.display()))?;
 
     content.extend(build_kernel_table(args)?);
+    content.extend(build_cpu_state(args, policy)?);
 
     sha256_bytes(&content, "firmware + table")
 }
@@ -179,12 +229,13 @@ fn parse_base64_or_path(argname: &str, val: &str) -> super::Result<Vec<u8>> {
 pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let mut data: Vec<u8> = Vec::new();
 
-    let digest = build_digest(&args)?;
+    let policy = parse_hex_or_int("--policy", &args.policy)?;
+
+    let digest = build_digest(&args, &policy)?;
 
     let api_major = parse_hex_or_int("--api-major", &args.api_major)?;
     let api_minor = parse_hex_or_int("--api-minor", &args.api_minor)?;
     let build_id = parse_hex_or_int("--build-id", &args.build_id)?;
-    let policy = parse_hex_or_int("--policy", &args.policy)?;
 
     let nonce = parse_base64_or_path("--nonce", &args.nonce)?;
     let tik = parse_base64_or_path("--tik", &args.tik)?;
