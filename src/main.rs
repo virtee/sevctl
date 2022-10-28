@@ -161,6 +161,7 @@ struct Sevctl {
     pub quiet: bool,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(StructOpt)]
 #[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV environment")]
 enum SevctlCmd {

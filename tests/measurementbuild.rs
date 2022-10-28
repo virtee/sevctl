@@ -15,6 +15,10 @@ struct BuildArgs<'a> {
     initrd: Option<&'a str>,
     cmdline: Option<&'a str>,
 
+    num_cpus: Option<&'a str>,
+    vmsa_cpu0: Option<&'a str>,
+    vmsa_cpu1: Option<&'a str>,
+
     outfile: Option<&'a str>,
 }
 
@@ -60,6 +64,15 @@ fn run_build(args: &BuildArgs) -> String {
         sevctl_args.push(cmdline);
     }
 
+    if let Some(num_cpus) = args.num_cpus {
+        sevctl_args.push("--num-cpus");
+        sevctl_args.push(num_cpus);
+        sevctl_args.push("--vmsa-cpu0");
+        sevctl_args.push(args.vmsa_cpu0.unwrap());
+        sevctl_args.push("--vmsa-cpu1");
+        sevctl_args.push(args.vmsa_cpu1.unwrap());
+    }
+
     if let Some(val) = &args.outfile {
         sevctl_args.push("--outfile");
         sevctl_args.push(val);
@@ -90,6 +103,9 @@ fn measurement_build() {
         kernel: None,
         initrd: None,
         cmdline: None,
+        num_cpus: None,
+        vmsa_cpu0: None,
+        vmsa_cpu1: None,
         outfile: None,
     };
 
@@ -127,4 +143,15 @@ fn measurement_build() {
     };
     let expected = "h3auYbWQnVW7EGLWN4Hf9SN0oEYMPU2sK4bLnefWPws=";
     test_build(expected, args_kernel);
+
+    // Test SEV-ES VMSA bits
+    let args_vmsa = BuildArgs {
+        policy: "0x05",
+        num_cpus: Some("4"),
+        vmsa_cpu0: Some("tests/data/vmsa0.bin"),
+        vmsa_cpu1: Some("tests/data/vmsa1.bin"),
+        ..args_firmware
+    };
+    let expected = "tsLCcIIPrm3TWcyaOFfvUVEjRLGQzEnGlznRioMOCU4=";
+    test_build(expected, args_vmsa);
 }
