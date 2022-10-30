@@ -5,8 +5,10 @@ struct BuildArgs<'a> {
     api_minor: &'a str,
     build_id: &'a str,
     policy: &'a str,
-    nonce: &'a str,
     tik: &'a str,
+
+    nonce: Option<&'a str>,
+    launch_measure_blob: Option<&'a str>,
 
     launch_digest: Option<&'a str>,
 
@@ -36,11 +38,18 @@ fn run_build(args: &BuildArgs) -> String {
         args.build_id,
         "--policy",
         args.policy,
-        "--nonce",
-        args.nonce,
         "--tik",
         &tik,
     ];
+
+    if let Some(nonce) = args.nonce {
+        sevctl_args.push("--nonce");
+        sevctl_args.push(nonce);
+    }
+    if let Some(lmb) = args.launch_measure_blob {
+        sevctl_args.push("--launch-measure-blob");
+        sevctl_args.push(lmb);
+    }
 
     if let Some(ld) = args.launch_digest {
         sevctl_args.push("--launch-digest");
@@ -96,8 +105,9 @@ fn measurement_build() {
         api_minor: "40",
         build_id: "40",
         policy: "0x03",
-        nonce: "wxP6tRHCFrFQWxsuqZA8QA==",
         tik: "tests/data/measurement/tik1.bin",
+        nonce: Some("wxP6tRHCFrFQWxsuqZA8QA=="),
+        launch_measure_blob: None,
         launch_digest: None,
         firmware: None,
         kernel: None,
@@ -150,8 +160,12 @@ fn measurement_build() {
         num_cpus: Some("4"),
         vmsa_cpu0: Some("tests/data/vmsa0.bin"),
         vmsa_cpu1: Some("tests/data/vmsa1.bin"),
+        nonce: None,
+        launch_measure_blob: Some(
+            "wFoaFXFZeO2iOfNCx2jnqh1Fk8G/JKXNnMPoieZ9s+jQ4SfDnbQfS90G408LRizj",
+        ),
         ..args_firmware
     };
-    let expected = "tsLCcIIPrm3TWcyaOFfvUVEjRLGQzEnGlznRioMOCU4=";
+    let expected = "IUqwyFc598/emhH/ahv3t+w+PCcngSlcdMWb9VDx2Qs=";
     test_build(expected, args_vmsa);
 }
