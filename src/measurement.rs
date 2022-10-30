@@ -26,7 +26,12 @@ pub struct BuildArgs {
     pub policy: String,
 
     #[structopt(long, help = "Expected nonce (path or base64)")]
-    pub nonce: String,
+    pub nonce: Option<String>,
+    #[structopt(
+        long,
+        help = "Extract nonce from output of LAUNCH_MEASURE firmware command, such as reported by qemu query-sev-launch-measure or virsh domlaunchsecinfo (path or base64)"
+    )]
+    pub launch_measure_blob: Option<String>,
 
     #[structopt(long, help = "tik data (path or base64)")]
     pub tik: String,
@@ -236,9 +241,19 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let api_major = parse_hex_or_int("--api-major", &args.api_major)?;
     let api_minor = parse_hex_or_int("--api-minor", &args.api_minor)?;
     let build_id = parse_hex_or_int("--build-id", &args.build_id)?;
-
-    let nonce = parse_base64_or_path("--nonce", &args.nonce)?;
     let tik = parse_base64_or_path("--tik", &args.tik)?;
+
+    let nonce;
+    if let Some(nonce_arg) = args.nonce {
+        nonce = parse_base64_or_path("--nonce", &nonce_arg)?;
+    } else if let Some(launch_measure_blob_arg) = args.launch_measure_blob {
+        let blob = parse_base64_or_path("--launch-measure-blob", &launch_measure_blob_arg)?;
+        nonce = blob[32..].to_vec();
+    } else {
+        return Err(anyhow::anyhow!(
+            "One of --nonce or --launch-measure-blob must be specified."
+        ));
+    }
 
     data.push(0x4_u8);
     data.push(api_major.to_le_bytes()[0]);
