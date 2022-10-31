@@ -124,7 +124,7 @@ fn measurement_build() {
         launch_digest: Some("xkvRAfyaSizgonxAjZIAkR8TmolUabBKQKb6KJCDDSM="),
         ..stdargs
     };
-    let expected = "lswbxWxI9gckya16JQvdFtpYmNO4b+3inAPpqsgoBI4=";
+    let expected = "lswbxWxI9gckya16JQvdFtpYmNO4b+3inAPpqsgoBI7DE/q1EcIWsVBbGy6pkDxA";
     test_build(expected, args1);
 
     // Same as args1 test, but with --outfile.
@@ -141,7 +141,7 @@ fn measurement_build() {
         firmware: Some("tests/data/OVMF.amdsev.fd_trimmed_edk2-ovmf-20220126gitbb1bba3d77-4.el9"),
         ..stdargs
     };
-    let expected = "oMDewIouJSpbpNRHj7Mk3p08H2dPZQdsZMU14qIymBk=";
+    let expected = "oMDewIouJSpbpNRHj7Mk3p08H2dPZQdsZMU14qIymBnDE/q1EcIWsVBbGy6pkDxA";
     test_build(expected, BuildArgs { ..args_firmware });
 
     // Test --firmware + --kernel everything
@@ -151,21 +151,22 @@ fn measurement_build() {
         cmdline: Some("foo bar baz fake kernel=cmdline"),
         ..args_firmware
     };
-    let expected = "h3auYbWQnVW7EGLWN4Hf9SN0oEYMPU2sK4bLnefWPws=";
+    let expected = "h3auYbWQnVW7EGLWN4Hf9SN0oEYMPU2sK4bLnefWPwvDE/q1EcIWsVBbGy6pkDxA";
     test_build(expected, args_kernel);
 
     // Test SEV-ES VMSA bits
+    let expected = "/o0nzDKE5XgtVnUZWPhUea/WZYrTKLExR7KCwuMdbActvpWfXTFk21KMZIAAhQny";
     let args_vmsa = BuildArgs {
         policy: "0x05",
         num_cpus: Some("4"),
         vmsa_cpu0: Some("tests/data/vmsa0.bin"),
         vmsa_cpu1: Some("tests/data/vmsa1.bin"),
+        api_major: "1",
+        api_minor: "49",
+        build_id: "6",
         nonce: None,
-        launch_measure_blob: Some(
-            "wFoaFXFZeO2iOfNCx2jnqh1Fk8G/JKXNnMPoieZ9s+jQ4SfDnbQfS90G408LRizj",
-        ),
+        launch_measure_blob: Some(&expected),
         ..args_firmware
     };
-    let expected = "IUqwyFc598/emhH/ahv3t+w+PCcngSlcdMWb9VDx2Qs=";
     test_build(expected, args_vmsa);
 }
