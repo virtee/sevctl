@@ -269,8 +269,10 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     let mut sig = openssl::sign::Signer::new(openssl::hash::MessageDigest::sha256(), &key)?;
 
     sig.update(&data[..])?;
-    let out = sig.sign_to_vec()?;
+    let mut out = sig.sign_to_vec()?;
     log::debug!("Signed measurement: {}", base64::encode(&out));
+    out.extend(&nonce);
+    log::debug!("Measurement + nonce: {}", base64::encode(&out));
 
     if let Some(outfile) = &args.outfile {
         std::fs::write(outfile, &out)
