@@ -22,7 +22,7 @@ is-it-maintained-issue-resolution = { repository = "virtee/sevctl" }
 is-it-maintained-open-issues = { repository = "virtee/sevctl" }
 
 [dependencies]
-sev = { version = "1.0", features = ["openssl"] }
+sev = { git = "https://github.com/crobinso/sev", branch = "export-platformstatusflags", features = ["openssl"] }
 serde = { version = "1.0", features = ["derive"] }
 # serde_json is just for the example, not required in general
 serde_json = "1.0"

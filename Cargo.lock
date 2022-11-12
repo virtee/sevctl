@@ -526,6 +526,7 @@ dependencies = [
 [[package]]
 name = "sev"
 version = "1.0.0"
+source = "git+https://github.com/crobinso/sev?branch=export-platformstatusflags#e62a8dced462a78517b99e14c75540c1fa1cbec1"
 dependencies = [
  "bitfield",
  "bitflags",
