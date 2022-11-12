@@ -40,6 +40,27 @@ Generates a new (self-signed) OCA certificate and key.
 $ sevctl generate ~/my-cert ~/my-key
 ```
 
+### measurement build
+
+Build measurement value from its component parts. The output is a
+full measurement blob of measurement+nonce, similar to what qemu
+and libvirt report.
+
+```console
+$ sevctl measurement build \
+    --api-major 01 --api-minor 40 --build-id 40 \
+    --policy 0x05 \
+    --tik /path/to/VM_tik.bin \
+    --launch-measure-blob /o0nzDKE5XgtVnUZWPhUea/WZYrTKLExR7KCwuMdbActvpWfXTFk21KMZIAAhQny \
+    --firmware /usr/share/edk2/ovmf/OVMF.amdsev.fd \
+    --kernel /path/to/kernel \
+    --initrd /path/to/initrd \
+    --cmdline "my kernel cmdline" \
+    --vmsa-cpu0 /path/to/vmsa0.bin \
+    --vmsa-cpu1 /path/to/vmsa1.bin \
+    --num-cpus 4
+```
+
 ### ok
 
 Probes processor, sysfs, and KVM for AMD SEV, SEV-ES, and SEV-SNP related features on the host and emits the results.
