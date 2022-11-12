@@ -149,6 +149,7 @@
 mod http;
 mod measurement;
 mod ok;
+mod secret;
 mod session;
 mod vmsa;
 
@@ -271,6 +272,9 @@ enum SevctlCmd {
 
     #[structopt(about = "Measurement subcommands")]
     Measurement(measurement::MeasurementCmd),
+
+    #[structopt(about = "Secret subcommands")]
+    Secret(secret::SecretCmd),
 }
 
 fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
@@ -368,6 +372,9 @@ fn main() -> Result<()> {
         SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Rotate => rotate::cmd(),
+        SevctlCmd::Secret(option) => match option {
+            secret::SecretCmd::Build(args) => secret::build_cmd(args),
+        },
         SevctlCmd::Session { name, pdh, policy } => session::cmd(name, pdh, policy),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
