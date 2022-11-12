@@ -541,7 +541,7 @@ mod verify {
     }
 
     fn ca_chain(filename: PathBuf) -> Result<ca::Chain> {
-        let mut file = File::open(&filename).context("unable to open CA certificate chain file")?;
+        let mut file = File::open(filename).context("unable to open CA certificate chain file")?;
         ca::Chain::decode(&mut file, ()).context("unable to decode chain")
     }
 }

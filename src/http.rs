@@ -59,7 +59,7 @@ pub fn get(url: &str) -> Result<Response, Error> {
     let port = url.port_or_known_default().ok_or(Error::NoPort)?;
 
     let connector = TlsConnector::new().map_err(|e| Error::Tls(Box::new(e)))?;
-    let stream = TcpStream::connect(&format!("{}:{}", host, port)).map_err(Error::Io)?;
+    let stream = TcpStream::connect(format!("{}:{}", host, port)).map_err(Error::Io)?;
     let mut stream = connector
         .connect(host, stream)
         .map_err(|e| Error::Tls(Box::new(e)))?;
