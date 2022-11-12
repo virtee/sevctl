@@ -255,6 +255,9 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
         ));
     }
 
+    /* This is duplicating logic found in sev::session::Session::verify(),
+     * but we need sev crate API changes to access it for outputting
+     * like this. */
     data.push(0x4_u8);
     data.push(api_major.to_le_bytes()[0]);
     data.push(api_minor.to_le_bytes()[0]);
