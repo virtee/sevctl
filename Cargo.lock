@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "bitfield"
-version = "0.13.2"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46afbd2983a5d5a7bd740ccb198caf5b82f45c40c09c0eed36052d91cb92e719"
+checksum = "2d7e60934ceec538daadb9d8432424ed043a904d8e0243f3c6446bce549a46ac"
 
 [[package]]
 name = "bitflags"
@@ -236,6 +236,26 @@ name = "itoa"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aab8fc367588b89dcee83ab0fd66b72b50b72fa1904d7095045ace2b0c81c35"
+
+[[package]]
+name = "kvm-bindings"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efe70e65a5b092161d17f5005b66e5eefe7a94a70c332e755036fc4af78c4e79"
+dependencies = [
+ "vmm-sys-util",
+]
+
+[[package]]
+name = "kvm-ioctls"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97422ba48d7ffb66fd4d18130f72ab66f9bbbf791fb7a87b9291cdcfec437593"
+dependencies = [
+ "kvm-bindings",
+ "libc",
+ "vmm-sys-util",
+]
 
 [[package]]
 name = "lazy_static"
@@ -505,19 +525,19 @@ dependencies = [
 
 [[package]]
 name = "sev"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2919b04dac9b0fb31814196863cfa6e749db09706af24071e96ebbac80649172"
+version = "1.0.0"
 dependencies = [
  "bitfield",
  "bitflags",
  "codicon",
  "dirs",
  "iocuddle",
+ "kvm-ioctls",
  "openssl",
  "serde",
  "serde-big-array",
  "serde_bytes",
+ "static_assert_macro",
 ]
 
 [[package]]
@@ -541,6 +561,12 @@ dependencies = [
  "url",
  "uuid",
 ]
+
+[[package]]
+name = "static_assert_macro"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8aa19fe1f820914e252c747ee699215bba50c0f7b38af8828e4a85f79142fedb"
 
 [[package]]
 name = "strsim"
@@ -689,6 +715,16 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "vmm-sys-util"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc06a16ee8ebf0d9269aed304030b0d20a866b8b3dd3d4ce532596ac567a0d24"
+dependencies = [
+ "bitflags",
+ "libc",
+]
 
 [[package]]
 name = "wasi"
