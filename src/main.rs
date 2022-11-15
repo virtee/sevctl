@@ -354,7 +354,7 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
         .map(|g| g.into())
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init();
 
     let sevctl = Sevctl::from_args();
@@ -378,14 +378,11 @@ fn main() {
         },
     };
 
-    if let Err(err) = status {
-        if sevctl.quiet {
-            exit(1);
-        }
-        eprintln!("error: {}", err);
-
+    if status.is_err() && sevctl.quiet {
         exit(1);
     }
+
+    status
 }
 
 mod reset {
