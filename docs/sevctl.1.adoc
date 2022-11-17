@@ -1,0 +1,177 @@
+sevctl(1)
+=========
+
+NAME
+----
+sevctl - Command line tool for managing the AMD SEV environment.
+
+
+SYNOPSIS
+--------
+*sevctl* [GLOBAL_OPTIONS] [_COMMAND_] [_COMMAND_ARGS_] +
+*sevctl* [_-h, --help_] +
+*sevctl* *command* *--help*
+
+
+DESCRIPTION
+-----------
+sevctl is a CLI utility for managing and interacting the with AMD SEV firmware
+device of a host system.
+
+
+GLOBAL OPTIONS
+--------------
+*-q, --quiet*:: Don't print any output to the console.
+
+
+COMMANDS
+--------
+*sevctl export*::
+        usage: sevctl export FILE-PATH
+
+        This command exports the SEV certificate chain to the provided path.
+        Note that the AMD SEV certificate chain is different from the SEV and
+        SEV-ES (Naples, Rome) to SNP (Milan, Genoa) architectures. This command
+        currently only supports the SEV and SEV-ES certificate format.
+
+  options:
+        -h, --help      Show a help message.
+
+*sevctl generate*::
+	usage: sevctl generate CERT-PATH KEY-PATH
+
+        This command generates a new (self-signed) OCA certificate and key;
+        and writes the encoded certificate and key to the provided file paths.
+
+  options:
+        -h, --help      Show a help message
+
+*sevctl ok*::
+	usage: sevctl ok [sev, es, snp]
+
+        This command probes the processor, sysfs, and KVM for AMD SEV, SEV-ES,
+        and SEV-SNP related features on the host and emits the results.
+
+        Note that if there is no architecture specified as an argument, sevctl
+        will probe which processor generation is used on the host system. The
+        application will then test for the generation of the host processor.
+
+        For example: If the operator simply runs "sevctl ok" with no arguments,
+        and the current processor is of the SEV-ES (AMD EPYC Rome) generation,
+        then all tests for SEV and SEV-ES will run. SEV-SNP tests will be ignored
+        since a AMD EPYC Rome processor does not support SEV-SNP. The test hierarchy
+        is as follows:
+
+                                SEV-SNP > SEV-ES > SEV
+
+        SEV-SNP testing will include SEV-ES and SEV tests.
+        SEV-ES testing will only include SEV-ES and SEV tests.
+        SEV testing will only include SEV tests.
+
+ options:
+    -h, --help          Show a help message
+    sev, es, snp        Specify a TEE architecture to test for.
+
+*sevctl provision*::
+	usage: sevctl provision
+
+        This command allows an operator to take ownership of the platform by
+        installing their provided OCA certificate and private key.
+
+  options:
+    -h, --help          Show a help message
+
+*sevctl reset*::
+	usage: sevctl reset
+
+        This command resets the SEV platform. This will clear all persistent
+        data managed by the platform.
+
+  options:
+        -h, --help      Show a help message.
+
+*sevctl rotate*::
+	usage: sevctl rotate
+
+        This command rotates the Platform Diffie-Hellman (PDH) on the host
+        system.
+
+ options:
+    -h, --help          Show a help message
+
+*sevctl session*::
+	usage: sevctl session --name FILE-NAME PDH-CERT-PATH POLICY
+
+        This command generates a base64-encoded Guest Owner's Diffie-Hellman
+        (GODH), launch session files, and encoded (not base64) TIK and TEK
+        files based off of a given certificate chain file and 32-bit policy.
+
+ options:
+    -h, --help          Show a help message
+
+*sevctl show*::
+        usage: sevctl show [flags || guests]
+
+        This command describes the state of the SEV platform. There are two
+        platform details to describe:
+
+        SEV platform flags:     sevctl show flags
+        SEV guest inforation:   sevctl show guests
+
+ options:
+    -h, --help          Show a help message
+
+*sevctl verify*::
+	usage: sevctl verify
+
+        This command verifies the full SEV/CA certificate chain. File paths to
+        these certificates can be supplied as command line arguments if they are
+        stored on the local filesystem. If they are not supplied, the well-known
+        public components will be downloaded from their remote locations.
+
+ options:
+    -h, --help          Show a help message
+
+*sevctl vmsa build*::
+        usage: sevctl vmsa build FILE-NAME
+
+        This command builds a VMSA binary blob from the the given arguments and
+        writes the serialized blob to FILE-NAME.
+
+ options:
+    -h, --help          Show a help message
+    --userspace         Userspace VMM (only QEMU and libkrun are supported)
+    --family            CPU family
+    --stepping          CPU stepping
+    --model             CPU model
+    --firmware          Path to OVMF firmware
+    --cpu               CPU number
+
+*sevctl vmsa update*::
+	usage: sevctl vmsa update FILE-NAME
+
+        This command updates an existing VMSA binary blob (located at FILE-NAME)
+        in place from the given arguments.
+
+ options:
+    -h, --help          Show a help message
+    --userspace         Userspace VMM (only QEMU and libkrun are supported)
+    --family            CPU family
+    --stepping          CPU stepping
+    --model             CPU model
+    --firmware          Path to OVMF firmware
+    --cpu               CPU number
+
+*sevctl vmsa show*::
+	usage: sevctl vmsa show FILE-NAME
+
+        This command prints an existing VMSA binary file as JSON.
+
+ options:
+    -h, --help          Show a help message
+
+
+REPORTING BUGS
+--------------
+
+Please report all bugs to <https://github.com/virtee/sevctl/issues>
