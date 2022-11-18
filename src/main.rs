@@ -137,7 +137,7 @@ use structopt::StructOpt;
 use codicon::*;
 
 use ::sev::certs::*;
-use ::sev::firmware::{Firmware, PlatformStatusFlags, Status};
+use ::sev::firmware::host::{types::Status, Firmware, PlatformStatusFlags};
 use ::sev::Generation;
 
 use std::fs::File;
