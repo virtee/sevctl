@@ -80,17 +80,32 @@ fn sha256_path(path: &Path) -> super::Result<Vec<u8>> {
     sha256_bytes(&content, logname)
 }
 
-fn build_entry(guid: uuid::Uuid, payload: Vec<u8>) -> super::Result<Vec<u8>> {
+pub fn build_entry(
+    guid: uuid::Uuid,
+    payload: Vec<u8>,
+    entry_size: usize,
+) -> super::Result<Vec<u8>> {
     let mut entry: Vec<u8> = Vec::new();
     let header = guid.to_bytes_le();
-    let len = header.len() + payload.len() + 2;
+    let len = header.len() + payload.len() + entry_size;
 
     entry.extend(&header);
-    entry.extend(&(len as u16).to_le_bytes());
+    entry.extend(&len.to_le_bytes()[..entry_size]);
     entry.extend(&payload);
 
     sha256_bytes(&entry, "entry")?;
     Ok(entry)
+}
+
+pub fn build_table(
+    guid: uuid::Uuid,
+    payload: Vec<u8>,
+    entry_size: usize,
+) -> super::Result<Vec<u8>> {
+    let mut table = build_entry(guid, payload, entry_size)?;
+    let pad = 16 - (table.len() % 16);
+    table.extend(vec![0; pad]);
+    Ok(table)
 }
 
 fn build_kernel_table(args: &BuildArgs) -> super::Result<Vec<u8>> {
@@ -104,6 +119,7 @@ fn build_kernel_table(args: &BuildArgs) -> super::Result<Vec<u8>> {
         ));
     }
 
+    let entry_size = 2;
     let kernel = args.kernel.as_ref().unwrap();
     let initrd = args.initrd.as_ref().unwrap();
     let cmdline = args.cmdline.as_ref().unwrap();
@@ -121,14 +137,13 @@ fn build_kernel_table(args: &BuildArgs) -> super::Result<Vec<u8>> {
     payload.extend(build_entry(
         cmdline_uuid,
         sha256_bytes(&cmdline_bytes, "cmdline")?,
+        entry_size,
     )?);
-    payload.extend(build_entry(initrd_uuid, sha256_path(initrd)?)?);
-    payload.extend(build_entry(kernel_uuid, sha256_path(kernel)?)?);
+    payload.extend(build_entry(initrd_uuid, sha256_path(initrd)?, entry_size)?);
+    payload.extend(build_entry(kernel_uuid, sha256_path(kernel)?, entry_size)?);
     sha256_bytes(&payload, "table payload")?;
 
-    let mut table = build_entry(table_uuid, payload)?;
-    let pad = 16 - (table.len() % 16);
-    table.extend(vec![0; pad]);
+    let table = build_table(table_uuid, payload, entry_size)?;
 
     sha256_bytes(&table, "table")?;
     Ok(table)
@@ -215,7 +230,7 @@ fn parse_hex_or_int(argname: &str, val: &str) -> super::Result<u32> {
     }
 }
 
-fn parse_base64_or_path(argname: &str, val: &str) -> super::Result<Vec<u8>> {
+pub fn parse_base64_or_path(argname: &str, val: &str) -> super::Result<Vec<u8>> {
     let result = if std::fs::metadata(val).is_ok() {
         std::fs::read(val).context(format!("reading path {}={} failed", argname, val))
     } else {
