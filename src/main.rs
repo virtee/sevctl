@@ -89,6 +89,22 @@
 //! $ sevctl rotate
 //! ```
 //!
+//! ## secret build
+//!
+//! Generate secret header and payload binary content, and write to specified
+//! output paths. Secrets are passed as `--secret UUID:FILENAME` pairs
+//!
+//! ```console
+//! $ sevctl secret build \
+//!     --tik /path/to/VM_tik.bin \
+//!     --tek /path/to/VM_tik.bin \
+//!     --launch-measure-blob /o0nzDKE5XgtVnUZWPhUea/WZYrTKLExR7KCwuMdbActvpWfXTFk21KMZIAAhQny \
+//!     --secret 736869e5-84f0-4973-92ec-06879ce3da0b:/path/to/secret.txt \
+//!     /path/to/secret_header.bin \
+//!     /path/to/secret_payload.bin
+//! ```
+//!
+//!
 //! ## session
 //!
 //! Given a certificate chain file and 32-bit policy, generates base64-encoded GODH and launch session files; as
