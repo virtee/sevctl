@@ -5,6 +5,7 @@ jobs:
     name: ${{ matrix.toolchain }} (${{ matrix.profile.name }})
     runs-on: ubuntu-latest
     steps:
+      - run: sudo apt-get install -y asciidoctor
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
