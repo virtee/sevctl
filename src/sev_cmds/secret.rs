@@ -5,7 +5,7 @@ use structopt::StructOpt;
 
 use anyhow::Context;
 
-use crate::measurement;
+use super::measurement;
 
 struct SecretPair {
     uuid: uuid::Uuid,
