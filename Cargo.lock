@@ -276,9 +276,9 @@ dependencies = [
 
 [[package]]
 name = "kvm-ioctls"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97422ba48d7ffb66fd4d18130f72ab66f9bbbf791fb7a87b9291cdcfec437593"
+checksum = "c3a321cabd827642499c77e27314f388dd83a717a5ca716b86476fb947f73ae4"
 dependencies = [
  "kvm-bindings",
  "libc",
@@ -580,6 +580,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8c8ec2a5131be61bba9ffad92aead45bd27805c9701d265b7196d4914299b98"
 dependencies = [
+ "bincode",
  "bitfield",
  "bitflags",
  "codicon",
@@ -591,6 +592,7 @@ dependencies = [
  "serde-big-array",
  "serde_bytes",
  "static_assertions",
+ "uuid",
 ]
 
 [[package]]
@@ -758,9 +760,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.1.2"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
+checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
 
 [[package]]
 name = "vcpkg"

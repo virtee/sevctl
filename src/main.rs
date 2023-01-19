@@ -53,9 +53,8 @@ enum SevctlCmd {
         #[structopt(subcommand)]
         cmd: show::Show,
     },
-
     #[structopt(about = "SEV-SNP specific commands")]
-    Snp,
+    Snp(snp_cmds::SnpCmd),
 
     #[structopt(about = "VMSA-related subcommands")]
     Vmsa(VmsaCmd),
@@ -81,7 +80,7 @@ fn main() -> Result<()> {
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Sev(args) => sev_cmds::cmd(args, sevctl.quiet),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
-        SevctlCmd::Snp => snp_cmds::cmd(),
+        SevctlCmd::Snp(args) => snp_cmds::cmd(args, sevctl.quiet),
         SevctlCmd::Vmsa(option) => match option {
             VmsaCmd::Build(args) => vmsa::build::cmd(args),
             VmsaCmd::Show(args) => vmsa::show::cmd(args),
