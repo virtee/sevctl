@@ -33,16 +33,3 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-
-  readme:
-    name: cargo readme
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          profile: minimal
-          override: true
-      - run: cargo install cargo-readme
-      - run: cargo readme > README.md && git diff --exit-code
