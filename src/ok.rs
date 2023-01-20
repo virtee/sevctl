@@ -10,6 +10,8 @@ use std::mem::MaybeUninit;
 use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
+use anyhow::anyhow;
+
 #[derive(StructOpt, PartialEq, Eq)]
 pub enum SevGeneration {
     #[structopt(about = "Secure Encrypted Virtualization")]
@@ -31,27 +33,53 @@ impl SevGeneration {
         }
     }
 
-    /// An AMD processor's generation can be found from the ID associated with the processor.
-    ///
-    /// For example:
-    ///
-    /// A 1st generation (Naples processor) has an ID of 7xx1, where the lower "1" indicates the
-    /// first generation of EPYC processors. This is extended with each new generation of AMD EPYC
-    /// processor:
-    ///     Naples: 1 (SEV)
-    ///     Rome: 2 (SEV, SEV-ES)
-    ///     Milan: 3 (SEV, SEV-ES, SEV-SNP)
-    ///
-    /// This function, given the processor's model number from the CPUID, returns which SEV
-    /// generation is supported by the processor.
-    fn from_model_id(id: usize) -> Result<Self> {
-        match id % 10 {
-            1 => Ok(Self::Sev), // Naples.
-            2 => Ok(Self::Es),  // Rome.
-            3 => Ok(Self::Snp), // Milan.
+    // Get the SEV generation of the processor currently running on the machine.
+    // To do this, we execute a CPUID (label 0x80000001) and read the EAX
+    // register as an array of bytes (each byte representing 8 bits of a 32-bit
+    // value, thus the array is 4 bytes long). The formatting for this value is
+    // as follows:
+    //
+    //  Base model:         4:7
+    //  Base family:        8:11
+    //  Extended model:     16:19
+    //  Extended family:    20:27
+    //
+    // Extract the bit values from the array, and compare them with known base
+    // model, base family, extended model, and extended family values for each
+    // SEV generation. Then, compare the values and return a SEV generation if
+    // its values match.
+    //
+    fn current() -> Result<Self> {
+        let cpuid = unsafe { x86_64::__cpuid(0x8000_0001) };
+        let bytes: Vec<u8> = cpuid.eax.to_le_bytes().to_vec();
 
-            _ => Err(anyhow::anyhow!("invalid processor model number")), // Invalid.
+        let base_model = (bytes[0] & 0xF0) >> 4;
+        let base_family = bytes[1] & 0x0F;
+
+        let ext_model = bytes[2] & 0x0F;
+
+        let ext_family = {
+            let low = (bytes[2] & 0xF0) >> 4;
+            let high = (bytes[3] & 0x0F) << 4;
+
+            low | high
+        };
+
+        let id = (base_model, ext_model, base_family, ext_family);
+
+        let naples = (0x1, 0x0, 0xf, 0x8);
+        let rome = (0x1, 0x3, 0xf, 0x8);
+        let milan = (0x1, 0x0, 0xf, 0xa);
+
+        if id == naples {
+            return Ok(SevGeneration::Sev);
+        } else if id == rome {
+            return Ok(SevGeneration::Es);
+        } else if id == milan {
+            return Ok(SevGeneration::Snp);
         }
+
+        Err(anyhow!("processor is not of a known SEV generation"))
     }
 }
 
@@ -406,7 +434,9 @@ pub fn cmd(gen: Option<SevGeneration>, quiet: bool) -> Result<()> {
 
     let mask = match gen {
         Some(g) => g.to_mask(),
-        None => current_gen().unwrap_or(SevGeneration::Snp).to_mask(),
+        None => SevGeneration::current()
+            .unwrap_or(SevGeneration::Snp)
+            .to_mask(),
     };
 
     if run_test(&tests, 0, quiet, mask) {
@@ -623,51 +653,4 @@ fn memlock_rlimit() -> TestResult {
         stat,
         mesg: Some(mesg),
     }
-}
-
-fn current_gen() -> Result<SevGeneration> {
-    let mut bytestr = Vec::with_capacity(48);
-    let cpu_name = {
-        for cpuid in 0x8000_0002_u32..=0x8000_0004_u32 {
-            let cpuid = unsafe { x86_64::__cpuid(cpuid) };
-            let mut bytes: Vec<u8> = [cpuid.eax, cpuid.ebx, cpuid.ecx, cpuid.edx]
-                .iter()
-                .flat_map(|r| r.to_le_bytes().to_vec())
-                .collect();
-            bytestr.append(&mut bytes);
-        }
-
-        String::from_utf8(bytestr)
-            .unwrap_or_else(|_| "ERROR_FOUND".to_string())
-            .trim()
-            .to_string()
-    };
-
-    let name = cpu_name.to_uppercase();
-    let id = get_id(name).context("couldn't convert CPU model string to usize")?;
-
-    SevGeneration::from_model_id(id)
-}
-
-fn get_id(cpuidstr: String) -> Result<usize> {
-    let arr = cpuidstr.split(' ');
-
-    for s in arr {
-        let s = s.to_string();
-        let mut numeric = true;
-        for c in s.chars() {
-            if !c.is_numeric() {
-                numeric = false;
-            }
-        }
-        if !numeric {
-            continue;
-        }
-
-        return s
-            .parse::<usize>()
-            .context("unable to parse CPUID substring into usize");
-    }
-
-    Err(anyhow::anyhow!("unable to find AMD processor generation"))
 }
