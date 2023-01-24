@@ -70,12 +70,13 @@ impl SevGeneration {
         let naples = (0x1, 0x0, 0xf, 0x8);
         let rome = (0x1, 0x3, 0xf, 0x8);
         let milan = (0x1, 0x0, 0xf, 0xa);
+        let genoa = (0x1, 0x1, 0xf, 0xa);
 
         if id == naples {
             return Ok(SevGeneration::Sev);
         } else if id == rome {
             return Ok(SevGeneration::Es);
-        } else if id == milan {
+        } else if id == milan || id == genoa {
             return Ok(SevGeneration::Snp);
         }
 
