@@ -12,7 +12,10 @@ use anyhow::{Context, Result};
 
 use structopt::StructOpt;
 
-use ::sev::firmware::host::{types::Status, Firmware, PlatformStatusFlags};
+use ::sev::firmware::host::{
+    types::{PlatformStatusFlags, Status},
+    Firmware,
+};
 
 use std::fs::File;
 use std::path::PathBuf;
