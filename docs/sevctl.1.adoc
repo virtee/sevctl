@@ -10,7 +10,7 @@ SYNOPSIS
 --------
 *sevctl* [GLOBAL_OPTIONS] [_COMMAND_] [_COMMAND_ARGS_] +
 *sevctl* [_-h, --help_] +
-*sevctl* *command* *--help*
+*sevctl* *generation* *command* *--help*
 
 
 DESCRIPTION
@@ -26,8 +26,8 @@ GLOBAL OPTIONS
 
 COMMANDS
 --------
-*sevctl export*::
-        usage: sevctl export FILE-PATH
+*sevctl sev export*::
+        usage: sevctl sev export FILE-PATH
 
         This command exports the SEV certificate chain to the provided path.
         Note that the AMD SEV certificate chain is different from the SEV and
@@ -37,8 +37,8 @@ COMMANDS
   options:
         -h, --help      Show a help message.
 
-*sevctl generate*::
-	usage: sevctl generate CERT-PATH KEY-PATH
+*sevctl sev generate*::
+	usage: sevctl sev generate CERT-PATH KEY-PATH
 
         This command generates a new (self-signed) OCA certificate and key;
         and writes the encoded certificate and key to the provided file paths.
@@ -72,8 +72,8 @@ COMMANDS
     -h, --help          Show a help message
     sev, es, snp        Specify a TEE architecture to test for.
 
-*sevctl provision*::
-	usage: sevctl provision
+*sevctl sev provision*::
+	usage: sevctl sev provision
 
         This command allows an operator to take ownership of the platform by
         installing their provided OCA certificate and private key.
@@ -81,8 +81,8 @@ COMMANDS
   options:
     -h, --help          Show a help message
 
-*sevctl reset*::
-	usage: sevctl reset
+*sevctl sev reset*::
+	usage: sevctl sev reset
 
         This command resets the SEV platform. This will clear all persistent
         data managed by the platform.
@@ -90,8 +90,8 @@ COMMANDS
   options:
         -h, --help      Show a help message.
 
-*sevctl rotate*::
-	usage: sevctl rotate
+*sevctl sev rotate*::
+	usage: sevctl sev rotate
 
         This command rotates the Platform Diffie-Hellman (PDH) on the host
         system.
@@ -99,8 +99,8 @@ COMMANDS
  options:
     -h, --help          Show a help message
 
-*sevctl session*::
-	usage: sevctl session --name FILE-NAME PDH-CERT-PATH POLICY
+*sevctl sev session*::
+	usage: sevctl sev session --name FILE-NAME PDH-CERT-PATH POLICY
 
         This command generates a base64-encoded Guest Owner's Diffie-Hellman
         (GODH), launch session files, and encoded (not base64) TIK and TEK
@@ -122,7 +122,7 @@ COMMANDS
     -h, --help          Show a help message
 
 *sevctl verify*::
-	usage: sevctl verify
+	usage: sevctl sev verify
 
         This command verifies the full SEV/CA certificate chain. File paths to
         these certificates can be supplied as command line arguments if they are
@@ -169,7 +169,6 @@ COMMANDS
 
  options:
     -h, --help          Show a help message
-
 
 REPORTING BUGS
 --------------
