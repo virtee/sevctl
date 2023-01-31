@@ -170,6 +170,26 @@ COMMANDS
  options:
     -h, --help          Show a help message
 
+*sevctl snp set-certs*
+        usage: sevctl snp set-certs --ark ARK-FILE --ask ASK_FILE
+                --vcek VCEK_FILE
+
+        This command sets the SEV-SNP certificate chain from given ARK, ASK, and
+        VCEK files, although a user does NOT have to input all three.
+
+ options:
+    -h, --help          Show a help message.
+
+*sevctl snp get-certs*
+        usage: sevctl snp get-certs --ark ARK_FILE_PATH --ask ASK_FILE_PATH
+                --vcek VCEK_FILE_PATH
+
+        This command requests the SEV-SNP certificate chain and writes each
+        certificate to an inputted file name.
+
+ options:
+    -h, --help          Show a help message.
+
 REPORTING BUGS
 --------------
 
