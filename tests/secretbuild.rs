@@ -14,6 +14,7 @@ fn run_build(args: &BuildArgs, header_file: &str, payload_file: &str) -> String 
     let tek = utils::cargo_root_path(&args.tek);
 
     let mut sevctl_args = vec![
+        "sev",
         "secret",
         "build",
         "--tik",

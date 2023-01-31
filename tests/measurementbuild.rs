@@ -28,6 +28,7 @@ fn run_build(args: &BuildArgs) -> String {
     let tik = utils::cargo_root_path(&args.tik);
 
     let mut sevctl_args = vec![
+        "sev",
         "measurement",
         "build",
         "--api-major",
