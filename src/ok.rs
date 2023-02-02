@@ -36,19 +36,27 @@ impl SevGeneration {
     // Get the SEV generation of the processor currently running on the machine.
     // To do this, we execute a CPUID (label 0x80000001) and read the EAX
     // register as an array of bytes (each byte representing 8 bits of a 32-bit
-    // value, thus the array is 4 bytes long). The formatting for this value is
+    // value, thus the array is 4 bytes long). The formatting for these values is
     // as follows:
     //
-    //  Base model:         4:7
-    //  Base family:        8:11
-    //  Extended model:     16:19
-    //  Extended family:    20:27
+    //  Base model:         bits 4:7
+    //  Base family:        bits 8:11
+    //  Extended model:     bits 16:19
+    //  Extended family:    bits 20:27
     //
-    // Extract the bit values from the array, and compare them with known base
-    // model, base family, extended model, and extended family values for each
-    // SEV generation. Then, compare the values and return a SEV generation if
-    // its values match.
+    // Extract the bit values from the array, and use them to calculate the MODEL
+    // and FAMILY of the processor.
     //
+    // The family calculation is as follows:
+    //
+    //      FAMILY = Base family + Extended family
+    //
+    // The model calculation is a follows:
+    //
+    //      MODEL = Base model | (Extended model << 4)
+    //
+    // Compare these values with the models and families of known processor generations to
+    // determine which generation the current processor is a part of.
     fn current() -> Result<Self> {
         let cpuid = unsafe { x86_64::__cpuid(0x8000_0001) };
         let bytes: Vec<u8> = cpuid.eax.to_le_bytes().to_vec();
@@ -65,12 +73,15 @@ impl SevGeneration {
             low | high
         };
 
-        let id = (base_model, ext_model, base_family, ext_family);
+        let model = (ext_model << 4) | base_model;
+        let family = base_family + ext_family;
 
-        let naples = (0x1, 0x0, 0xf, 0x8);
-        let rome = (0x1, 0x3, 0xf, 0x8);
-        let milan = (0x1, 0x0, 0xf, 0xa);
-        let genoa = (0x1, 0x1, 0xf, 0xa);
+        let id = (model, family);
+
+        let naples = (1, 23);
+        let rome = (49, 23);
+        let milan = (1, 25);
+        let genoa = (17, 25);
 
         if id == naples {
             return Ok(SevGeneration::Sev);
