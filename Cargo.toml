@@ -39,7 +39,7 @@ openssl = "0.10"
 uuid = "1.1.2"
 anyhow = "1.0.57"
 log = "0.4"
-env_logger = "0.8.4"
+env_logger = "0.10.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
