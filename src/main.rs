@@ -16,7 +16,10 @@ use structopt::StructOpt;
 use codicon::*;
 
 use ::sev::certs::*;
-use ::sev::firmware::host::{types::Status, Firmware, PlatformStatusFlags};
+use ::sev::firmware::host::{
+    types::{PlatformStatusFlags, Status},
+    Firmware,
+};
 use ::sev::Generation;
 
 use std::fs::File;
