@@ -8,6 +8,21 @@
 `sevctl` is a command line utility for managing the AMD Secure Encrypted Virtualization (SEV) platform.
 It currently supports the entire management API for the Naples generation of processors.
 
+In order to provision a new server using a self-signed Owner's Certificate
+Authority (OCA), you would typically perform a sequence similar to:
+
+```console
+$ sevctl generate oca.cert oca.key
+$ sevctl provision oca.cert oca.key
+$ sevctl export --full /opt/sev/cert_chain.cert
+```
+
+After these steps, running the `sevctl verify` subcommand should show the whole
+certificate chain, and `sevctl show flags` should indicate that the platform is
+`owned`. Note that you can only provision once. Should you need to re-provision,
+you will need to use `sevctl reset` first.
+
+
 ## Usage
 
 ### help
