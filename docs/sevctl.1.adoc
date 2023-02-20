@@ -112,11 +112,14 @@ COMMANDS
 *sevctl show*::
         usage: sevctl show [flags || guests]
 
-        This command describes the state of the SEV platform. There are two
+        This command describes the state of the SEV platform. There are several
         platform details to describe:
 
-        SEV platform flags:     sevctl show flags
-        SEV guest inforation:   sevctl show guests
+        SEV platform flags:        sevctl show flags
+        SEV guest inforation:      sevctl show guests
+        SEV platform identifier:   sevctl show identifier
+        SEV SNP status:            sevctl show snp-status
+        SEV SNP VCEK URL:          sevctl show veck-url
 
  options:
     -h, --help          Show a help message
