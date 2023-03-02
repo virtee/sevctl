@@ -35,7 +35,7 @@ libc = "0.2.126"
 native-tls = "0.2"
 url = "2.2"
 base64 = "0.13.0"
-openssl = "0.10"
+openssl = { version = "0.10", features = ["vendored"] }
 uuid = "1.1.2"
 anyhow = "1.0.57"
 log = "0.4"
