@@ -103,7 +103,7 @@ pub fn build_table(
     entry_size: usize,
 ) -> super::Result<Vec<u8>> {
     let mut table = build_entry(guid, payload, entry_size)?;
-    let pad = 16 - (table.len() % 16);
+    let pad = ((table.len() + 16 - 1) & !(16 - 1)) - table.len();
     table.extend(vec![0; pad]);
     Ok(table)
 }
