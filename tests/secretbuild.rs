@@ -54,6 +54,19 @@ fn test_build(args: BuildArgs) -> String {
     return output;
 }
 
+fn test_build_raw(args: BuildArgs) -> (Vec<u8>, Vec<u8>) {
+    let header_tmp = tempfile::NamedTempFile::new().unwrap();
+    let payload_tmp = tempfile::NamedTempFile::new().unwrap();
+    let header_file = header_tmp.path().to_str().unwrap();
+    let payload_file = payload_tmp.path().to_str().unwrap();
+    run_build(&args, &header_file, &payload_file);
+
+    let header = std::fs::read(header_file).unwrap();
+    let payload = std::fs::read(payload_file).unwrap();
+
+    return (header, payload);
+}
+
 #[test]
 fn secret_build() {
     let secret1 = format!(
@@ -63,6 +76,14 @@ fn secret_build() {
     let secret2 = format!(
         "736869e5-aaaa-4973-92ec-06879ce3da0b:{}",
         utils::cargo_root_path("tests/data/secret/secret2.txt")
+    );
+    let secret3 = format!(
+        "23058844-597b-42fb-8259-a0f5d9d495af:{}",
+        utils::cargo_root_path("tests/data/secret/secret3.txt") // 16343 B file
+    );
+    let secret4 = format!(
+        "23058844-597b-42fb-8259-a0f5d9d495af:{}",
+        utils::cargo_root_path("tests/data/secret/secret4.txt") // 16344 B file
     );
 
     let stdargs = BuildArgs {
@@ -96,4 +117,23 @@ fn secret_build() {
     };
     let expected = "header_file:\nAAAAAKxUdO1N0yx9mJ7FI9klWeyZ3r0dOEKHUOhIRqzGYYvTJgdMtBPL1nK6GD9aGET7Ng==\npayload_file:\n0U3e5PcXv0UW+H4tSBFKObWYfKE1+j38Bc2fuO16mYiyI+sWx7INfn+lgYj56GL12yyinDa+lVfCC+WWs332lpLNUX1ZI3YK7vYgtys4X+uGxEIlkIQ90v8/w8ZFmQMe\n";
     assert_eq!(expected, test_build(args2));
+
+    // Test maximum secret size and proper padding
+    let args3 = BuildArgs {
+        secret: &vec![&secret3[..]],
+        ..stdargs
+    };
+    let (_, payload1) = test_build_raw(args3);
+    let args4 = BuildArgs {
+        secret: &vec![&secret4[..]],
+        ..stdargs
+    };
+    let (_, payload2) = test_build_raw(args4);
+    // The maximum secret payload length is
+    // (16 + 4 + (16 + 4 + padded secret size) * secrets count)
+    assert!(payload1.len() <= 16384); // 16 + 4 + (16 + 4 + pad(16343)) = 16384
+    assert!(payload2.len() <= 16384); // 16 + 4 + (16 + 4 + pad(16344)) = 16384
+    assert_eq!(payload1.len() % 16, 0);
+    assert_eq!(payload2.len() % 16, 0);
+    assert_eq!(payload1.len(), payload2.len());
 }
