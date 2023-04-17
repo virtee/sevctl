@@ -370,7 +370,13 @@ fn collect_tests() -> Vec<Test> {
                         Test {
                             name: "SEV enabled in KVM",
                             gen_mask: SEV_MASK,
-                            run: Box::new(sev_enabled_in_kvm),
+                            run: Box::new(|| sev_enabled_in_kvm(false)),
+                            sub: vec![],
+                        },
+                        Test {
+                            name: "SEV-ES enabled in KVM",
+                            gen_mask: ES_MASK,
+                            run: Box::new(|| sev_enabled_in_kvm(true)),
                             sub: vec![],
                         },
                         Test {
@@ -607,8 +613,12 @@ fn has_kvm_support() -> TestResult {
     }
 }
 
-fn sev_enabled_in_kvm() -> TestResult {
-    let path_loc = "/sys/module/kvm_amd/parameters/sev";
+fn sev_enabled_in_kvm(es: bool) -> TestResult {
+    let path_loc = if es {
+        "/sys/module/kvm_amd/parameters/sev_es"
+    } else {
+        "/sys/module/kvm_amd/parameters/sev"
+    };
     let path = std::path::Path::new(path_loc);
 
     let (stat, mesg) = if path.exists() {
@@ -636,7 +646,12 @@ fn sev_enabled_in_kvm() -> TestResult {
     };
 
     TestResult {
-        name: "SEV enabled in KVM".to_string(),
+        name: if es {
+            "SEV-ES enabled in KVM"
+        } else {
+            "SEV enabled in KVM"
+        }
+        .to_string(),
         stat,
         mesg: Some(mesg),
     }
