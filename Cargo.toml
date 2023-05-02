@@ -37,7 +37,7 @@ url = "2.2"
 base64 = "0.13.0"
 openssl = { version = "0.10", features = ["vendored"] }
 uuid = "1.1.2"
-anyhow = "1.0.57"
+anyhow = "1.0.71"
 log = "0.4"
 env_logger = "0.8.4"
 
