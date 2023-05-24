@@ -11,6 +11,18 @@ use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
 use anyhow::anyhow;
+use bitfield::bitfield;
+use msru::{Accessor, Msr};
+
+bitfield! {
+    #[repr(C)]
+    #[derive(Default, Copy, Clone, PartialEq, Eq)]
+    pub struct SysCfg(u32);
+    impl Debug;
+    pub get_meme, _: 23, 23;
+    pub get_snpe, _: 24, 24;
+    pub get_vmple, _: 25, 25;
+}
 
 #[derive(StructOpt, PartialEq, Eq)]
 pub enum SevGeneration {
@@ -196,9 +208,17 @@ fn collect_tests() -> Vec<Test> {
                     name: "Secure Memory Encryption (SME)",
                     gen_mask: SEV_MASK,
                     run: Box::new(|| {
+                        let mut syscfg: SysCfg = Default::default();
+
+                        if let Ok(mut syscfg_msr) = Msr::new(0xC0010010u32, 0) {
+                            if let Ok(msr_val) = syscfg_msr.read() {
+                                syscfg = SysCfg(msr_val as u32);
+                            }
+                        }
+
                         let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                        let stat = if (res.eax & 0x1) != 0 {
+                        let stat = if (res.eax & 0x1) != 0 && syscfg.get_meme() != 0 {
                             TestState::Pass
                         } else {
                             TestState::Fail
@@ -255,9 +275,17 @@ fn collect_tests() -> Vec<Test> {
                             name: "Secure Nested Paging (SEV-SNP)",
                             gen_mask: SNP_MASK,
                             run: Box::new(|| {
+                                let mut syscfg: SysCfg = Default::default();
+
+                                if let Ok(mut syscfg_msr) = Msr::new(0xC0010010u32, 0) {
+                                    if let Ok(msr_val) = syscfg_msr.read() {
+                                        syscfg = SysCfg(msr_val as u32);
+                                    }
+                                }
+
                                 let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                let stat = if (res.eax & 0x1 << 4) != 0 {
+                                let stat = if (res.eax & 0x1 << 4) != 0 && syscfg.get_snpe() != 0 {
                                     TestState::Pass
                                 } else {
                                     TestState::Fail
@@ -273,13 +301,22 @@ fn collect_tests() -> Vec<Test> {
                                 name: "VM Permission Levels",
                                 gen_mask: SNP_MASK,
                                 run: Box::new(|| {
+                                    let mut syscfg: SysCfg = Default::default();
+
+                                    if let Ok(mut syscfg_msr) = Msr::new(0xC0010010u32, 0) {
+                                        if let Ok(msr_val) = syscfg_msr.read() {
+                                            syscfg = SysCfg(msr_val as u32);
+                                        }
+                                    }
+
                                     let res = unsafe { x86_64::__cpuid(0x8000_001f) };
 
-                                    let stat = if (res.eax & 0x1 << 5) != 0 {
-                                        TestState::Pass
-                                    } else {
-                                        TestState::Fail
-                                    };
+                                    let stat =
+                                        if (res.eax & 0x1 << 5) != 0 && syscfg.get_vmple() != 0 {
+                                            TestState::Pass
+                                        } else {
+                                            TestState::Fail
+                                        };
 
                                     TestResult {
                                         name: "VM Permission Levels".to_string(),
