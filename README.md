@@ -117,7 +117,7 @@ output paths. Secrets are passed as `--secret UUID:FILENAME` pairs
 ```console
 $ sevctl secret build \
     --tik /path/to/VM_tik.bin \
-    --tek /path/to/VM_tik.bin \
+    --tek /path/to/VM_tek.bin \
     --launch-measure-blob /o0nzDKE5XgtVnUZWPhUea/WZYrTKLExR7KCwuMdbActvpWfXTFk21KMZIAAhQny \
     --secret 736869e5-84f0-4973-92ec-06879ce3da0b:/path/to/secret.txt \
     /path/to/secret_header.bin \
