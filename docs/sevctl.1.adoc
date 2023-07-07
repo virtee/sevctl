@@ -35,6 +35,7 @@ COMMANDS
         currently only supports the SEV and SEV-ES certificate format.
 
   options:
+        -f, --full      Export the entire (SEV + CA) chain.
         -h, --help      Show a help message.
 
 *sevctl generate*::
