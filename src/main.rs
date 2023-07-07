@@ -2,7 +2,6 @@
 
 #![deny(clippy::all)]
 
-mod http;
 mod measurement;
 mod ok;
 mod secret;
@@ -23,7 +22,7 @@ use ::sev::firmware::host::{
 use ::sev::Generation;
 
 use std::fs::File;
-use std::io;
+use std::io::{self, Cursor};
 use std::path::PathBuf;
 use std::process::exit;
 use std::time::Duration;
@@ -136,30 +135,37 @@ enum SevctlCmd {
     Secret(secret::SecretCmd),
 }
 
-fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
-    let mut err_stack = vec![];
+async fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
+    let mut err_stack: Vec<anyhow::Error> = vec![];
 
     for attempt in 1..4 {
-        match http::get(url) {
-            Ok(rsp) => {
-                return sev::Certificate::decode(rsp.into_reader(), ())
-                    .context(format!("failed to decode {} certificate", usage))
-            }
-            Err(http::Error::Status(_, rsp)) => {
+        match reqwest::get(url).await {
+            Ok(rsp) if !rsp.status().is_success() => {
                 err_stack.push(
-                    anyhow::anyhow!(format!("{:?}", rsp))
+                    anyhow::anyhow!(format!("{:?}", rsp.status()))
                         .context(format!("http request #{} failed", attempt)),
                 );
-                let retry: Option<u16> = rsp.header("retry-after").and_then(|h| h.parse().ok());
+                let retry: Option<u16> = rsp
+                    .headers()
+                    .get("retry-after")
+                    .and_then(|h| h.to_str().unwrap().parse().ok());
                 let retry = retry.unwrap_or(5);
                 std::thread::sleep(Duration::from_secs(retry as _));
             }
+            Ok(rsp) => match rsp.bytes().await {
+                Ok(body) => {
+                    let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
+                    return sev::Certificate::decode(out, ())
+                        .context(format!("failed to decode {} certificate", usage));
+                }
+                Err(e) => return Err(anyhow::Error::new(e).context("failed to read response body")),
+            },
             Err(e) => return Err(anyhow::Error::new(e).context("transport error")),
         }
     }
 
     // One last attempt before giving up
-    let rsp = http::get(url).map_err(|e| {
+    let rsp = reqwest::get(url).await.map_err(|e| {
         let prev_attempts = err_stack
             .into_iter()
             .map(|e| {
@@ -174,8 +180,14 @@ fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
             .context(format!("final http request failed: {}", e))
     })?;
 
-    sev::Certificate::decode(rsp.into_reader(), ())
-        .context(format!("failed to decode {} certificate", usage))
+    match rsp.bytes().await {
+        Ok(body) => {
+            let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
+            sev::Certificate::decode(out, ())
+                .context(format!("failed to decode {} certificate", usage))
+        }
+        Err(e) => return Err(anyhow::Error::new(e).context("failed to read response body")),
+    }
 }
 
 fn firmware() -> Result<Firmware> {
@@ -210,7 +222,8 @@ fn chain() -> Result<sev::Chain> {
         .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
 
-    chain.cek = download(&url, Usage::CEK)?;
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    chain.cek = rt.block_on(download(&url, Usage::CEK))?;
 
     Ok(chain)
 }
@@ -349,7 +362,7 @@ mod export {
     pub fn cmd(full: bool, dest: PathBuf) -> Result<()> {
         let chain = chain()?;
 
-        let mut out = std::io::Cursor::new(Vec::new());
+        let mut out = Cursor::new(Vec::new());
 
         if full {
             let full_chain = Chain {
