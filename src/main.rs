@@ -186,7 +186,7 @@ async fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
             sev::Certificate::decode(out, ())
                 .context(format!("failed to decode {} certificate", usage))
         }
-        Err(e) => return Err(anyhow::Error::new(e).context("failed to read response body")),
+        Err(e) => Err(anyhow::Error::new(e).context("failed to read response body")),
     }
 }
 
