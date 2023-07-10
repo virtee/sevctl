@@ -16,13 +16,15 @@ fn main() {
 
     for command in COMMANDS {
         if let Err(err) = generate_man_page(&outdir, command) {
-            panic!("failed to generate man page: {}", err);
+            println!(
+                "failed to generate man page: {} (is asciidoctor installed?)",
+                err
+            );
         }
     }
 }
 
 fn generate_man_page<P: AsRef<Path>>(outdir: P, command: &str) -> io::Result<()> {
-    // If asciidoctor isn't installed, fallback to asciidoc.
     if let Err(err) = process::Command::new("asciidoctor").output() {
         eprintln!("Error from running 'asciidoctor': {}", err);
         return Err(err);
