@@ -179,4 +179,14 @@ Print an existing VMSA binary file as JSON
 $ sevctl vmsa show EXISTING-VMSA0.bin
 ```
 
+## Building
+
+Some packages may need to be installed on the host system in order to build
+sevctl.
+
+### Ubuntu
+```console
+sudo apt install -y pkg-config libssl-dev asciidoctor
+```
+
 License: Apache-2.0
