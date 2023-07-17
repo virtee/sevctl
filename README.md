@@ -189,4 +189,9 @@ sevctl.
 sudo apt install -y pkg-config libssl-dev asciidoctor
 ```
 
+### RHEL and its compatible distributions
+```console
+sudo dnf install -y gcc openssl-devel pkg-config perl perl-FindBin perl-File-Compare
+```
+
 License: Apache-2.0
