@@ -616,7 +616,7 @@ fn dev_sev_w() -> TestResult {
     }
 }
 
-fn dev_sev_rw(file: &mut fs::OpenOptions) -> Result<()> {
+fn dev_sev_rw(file: &fs::OpenOptions) -> Result<()> {
     let path = "/dev/sev";
 
     match file.open(path) {
