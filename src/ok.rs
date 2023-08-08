@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::*;
-use colorful::*;
-use std::arch::x86_64;
-use std::fmt;
-use std::fs;
-use std::mem::transmute;
-use std::mem::MaybeUninit;
-use std::os::unix::io::AsRawFd;
-use std::str::from_utf8;
+
+use std::{
+    arch::x86_64,
+    fmt, fs,
+    mem::{transmute, MaybeUninit},
+    os::unix::io::AsRawFd,
+    str::from_utf8,
+};
 
 use anyhow::anyhow;
 use bitfield::bitfield;
+use colorful::*;
 use msru::{Accessor, Msr};
 
 bitfield! {

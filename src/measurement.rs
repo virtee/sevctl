@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 use std::path::{Path, PathBuf};
 
 use structopt::StructOpt;
-
-use anyhow::Context;
 
 #[derive(StructOpt)]
 pub enum MeasurementCmd {

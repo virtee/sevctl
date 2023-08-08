@@ -10,13 +10,14 @@ pub mod update;
 
 use super::*;
 
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fmt;
-use std::fmt::Write;
-use std::fs;
-use std::str::FromStr;
-use std::string::{ParseError, String};
+use std::{
+    collections::HashMap,
+    convert::TryInto,
+    fmt::{self, Write},
+    fs,
+    str::FromStr,
+    string::{ParseError, String},
+};
 
 use uuid::{uuid, Uuid};
 

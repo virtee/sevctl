@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use anyhow::Context;
+use super::*;
 
-use std::convert::{From, TryFrom};
-use std::fs;
-use std::mem::size_of;
-use std::path::PathBuf;
-use std::slice::from_raw_parts;
+use std::{
+    convert::{From, TryFrom},
+    fs,
+    mem::size_of,
+    path::PathBuf,
+    slice::from_raw_parts,
+};
 
-use ::sev::certs::sev::Certificate;
-use ::sev::{launch::sev, session};
+use ::sev::{certs::sev::sev::Certificate, launch::sev, session};
 
 use codicon::{Decoder, Encoder};
 
