@@ -8,26 +8,24 @@ mod secret;
 mod session;
 mod vmsa;
 
-use anyhow::{Context, Result};
-
-use structopt::StructOpt;
-
-use codicon::*;
-
-use ::sev::certs::*;
-use ::sev::firmware::host::{
-    types::{PlatformStatusFlags, Status},
-    Firmware,
-};
-use ::sev::Generation;
-
-use std::fs::File;
-use std::io::{self, Cursor};
-use std::path::PathBuf;
-use std::process::exit;
-use std::time::Duration;
-
 use crate::vmsa::*;
+
+use std::{
+    fs::File,
+    io::{self, Cursor},
+    path::PathBuf,
+    process::exit,
+    time::Duration,
+};
+
+use ::sev::{
+    certs::sev::*,
+    firmware::host::{Firmware, PlatformStatusFlags, Status},
+    Generation,
+};
+use anyhow::{Context, Result};
+use codicon::*;
+use structopt::StructOpt;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
@@ -364,9 +362,10 @@ mod export {
 
 mod verify {
     use super::*;
+
+    use std::{convert::TryInto, fmt::Display};
+
     use colorful::*;
-    use std::convert::TryInto;
-    use std::fmt::Display;
 
     pub fn cmd(
         quiet: bool,

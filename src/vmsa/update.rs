@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use super::*;
+
 use crate::{BuildUpdateCmdArgs, Ovmf, UserspaceVmm};
 
-use anyhow::Context;
-use sev::vmsa::*;
+use ::sev::vmsa::*;
 
 pub fn cmd(args: BuildUpdateCmdArgs) -> super::Result<()> {
     let mut vmsa = Vmsa::from_file(&args.filename).context("error reading VMSA from file")?;

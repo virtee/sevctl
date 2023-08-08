@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryFrom;
-use structopt::StructOpt;
-
-use anyhow::Context;
+use super::*;
 
 use crate::measurement;
+
+use std::convert::TryFrom;
+
+use structopt::StructOpt;
 
 struct SecretPair {
     uuid: uuid::Uuid,
