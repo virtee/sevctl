@@ -6,6 +6,7 @@ mod measurement;
 mod ok;
 mod secret;
 mod session;
+mod validate;
 mod vmsa;
 
 use crate::vmsa::*;
@@ -19,10 +20,15 @@ use std::{
 };
 
 use ::sev::{
-    certs::sev::*,
+    certs::sev::{
+        ca::Chain as CertSevCaChain,
+        sev::{Certificate, Chain, Usage as SevUsage},
+        Chain as CertSevChain, Usage,
+    },
     firmware::host::{Firmware, PlatformStatusFlags, Status},
     Generation,
 };
+
 use anyhow::{Context, Result};
 use clap::{arg, Parser, Subcommand, ValueEnum};
 use codicon::*;
@@ -122,6 +128,17 @@ enum SevctlCmd {
         ca: Option<PathBuf>,
     },
 
+    /// Validate subcommands
+    Validate {
+        /// PEK directory path
+        #[arg(short, long = "pek", required = true)]
+        pek_path: PathBuf,
+
+        /// Attestation Report directory path
+        #[arg(short, long = "attestation-report", required = true)]
+        ar_path: PathBuf,
+    },
+
     /// VMSA-related subcommands
     #[command(subcommand)]
     Vmsa(VmsaCmd),
@@ -135,7 +152,7 @@ enum SevctlCmd {
     Secret(secret::SecretCmd),
 }
 
-async fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
+async fn download(url: &str, usage: Usage) -> Result<Certificate> {
     let mut err_stack: Vec<anyhow::Error> = vec![];
 
     for attempt in 1..4 {
@@ -155,7 +172,7 @@ async fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
             Ok(rsp) => match rsp.bytes().await {
                 Ok(body) => {
                     let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
-                    return sev::Certificate::decode(out, ())
+                    return Certificate::decode(out, ())
                         .context(format!("failed to decode {} certificate", usage));
                 }
                 Err(e) => return Err(anyhow::Error::new(e).context("failed to read response body")),
@@ -183,8 +200,7 @@ async fn download(url: &str, usage: Usage) -> Result<sev::Certificate> {
     match rsp.bytes().await {
         Ok(body) => {
             let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
-            sev::Certificate::decode(out, ())
-                .context(format!("failed to decode {} certificate", usage))
+            Certificate::decode(out, ()).context(format!("failed to decode {} certificate", usage))
         }
         Err(e) => Err(anyhow::Error::new(e).context("failed to read response body")),
     }
@@ -201,7 +217,7 @@ fn platform_status() -> Result<Status> {
         .context("unable to fetch platform status")
 }
 
-fn chain() -> Result<sev::Chain> {
+fn chain() -> Result<Chain> {
     const CEK_SVC: &str = "https://kdsintf.amd.com/cek/id";
 
     let mut chain = firmware()?
@@ -221,7 +237,7 @@ fn chain() -> Result<sev::Chain> {
     Ok(chain)
 }
 
-fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
+fn ca_chain_builtin(chain: &Chain) -> Result<CertSevCaChain> {
     use std::convert::TryFrom;
 
     Generation::try_from(chain)
@@ -250,6 +266,7 @@ fn main() -> Result<()> {
         SevctlCmd::Session { name, pdh, policy } => session::cmd(name, pdh, policy),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
+        SevctlCmd::Validate { pek_path, ar_path } => validate::cmd(pek_path, ar_path),
         SevctlCmd::Vmsa(option) => match option {
             VmsaCmd::Build(args) => vmsa::build::cmd(args),
             VmsaCmd::Show(args) => vmsa::show::cmd(args),
@@ -343,7 +360,7 @@ mod export {
         let mut out = Cursor::new(Vec::new());
 
         if full {
-            let full_chain = Chain {
+            let full_chain = CertSevChain {
                 ca: ca_chain_builtin(&chain)?,
                 sev: chain,
             };
@@ -369,6 +386,7 @@ mod export {
 mod verify {
     use super::*;
 
+    use ::sev::certs::sev::Verifiable;
     use std::{convert::TryInto, fmt::Display};
 
     use colorful::*;
@@ -389,7 +407,7 @@ mod verify {
         if let Some(filename) = oca {
             let mut file = File::open(filename).context("unable to open OCA certificate file")?;
 
-            schain.oca = sev::Certificate::decode(&mut file, ()).context("unable to decode OCA")?;
+            schain.oca = Certificate::decode(&mut file, ()).context("unable to decode OCA")?;
         }
 
         if !quiet {
@@ -450,30 +468,31 @@ mod verify {
         }
     }
 
-    fn sev_chain(filename: Option<PathBuf>) -> Result<sev::Chain> {
+    fn sev_chain(filename: Option<PathBuf>) -> Result<Chain> {
         Ok(match filename {
             None => chain()?,
             Some(f) => {
                 let mut file =
                     File::open(f).context("unable to open SEV certificate chain file")?;
 
-                sev::Chain::decode(&mut file, ()).context("unable to decode chain")?
+                Chain::decode(&mut file, ()).context("unable to decode chain")?
             }
         })
     }
 
-    fn ca_chain(filename: PathBuf) -> Result<ca::Chain> {
+    fn ca_chain(filename: PathBuf) -> Result<CertSevCaChain> {
         let mut file = File::open(filename).context("unable to open CA certificate chain file")?;
-        ca::Chain::decode(&mut file, ()).context("unable to decode chain")
+        CertSevCaChain::decode(&mut file, ()).context("unable to decode chain")
     }
 }
 
 mod generate {
     use super::*;
+    use ::sev::certs::sev::Signer;
 
     pub fn cmd(oca_path: PathBuf, key_path: PathBuf) -> Result<()> {
-        let (mut oca, prv) = sev::Certificate::generate(sev::Usage::OCA)
-            .context("unable to generate OCA key pair")?;
+        let (mut oca, prv) =
+            Certificate::generate(SevUsage::OCA).context("unable to generate OCA key pair")?;
         prv.sign(&mut oca).context("key signing failed")?;
 
         // Write the certificate
@@ -506,18 +525,18 @@ mod rotate {
 mod provision {
     use super::*;
 
+    use ::sev::certs::sev::{PrivateKey, Signer};
+
     pub fn cmd(oca_path: PathBuf, prv_key_path: PathBuf) -> Result<()> {
         let mut fw = firmware()?;
         let cert = File::open(oca_path.clone())
             .context(format!("failed to open {}", oca_path.display()))
-            .and_then(|mut f| {
-                sev::Certificate::decode(&mut f, ()).context("failed to decode OCA")
-            })?;
+            .and_then(|mut f| Certificate::decode(&mut f, ()).context("failed to decode OCA"))?;
 
         let prv_key = File::open(prv_key_path.clone())
             .context(format!("failed to open {}", prv_key_path.display()))
             .and_then(|mut f| {
-                PrivateKey::<sev::Usage>::decode(&mut f, &cert)
+                PrivateKey::<SevUsage>::decode(&mut f, &cert)
                     .context("failed to decode OCA private key")
             })?;
 
