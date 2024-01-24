@@ -19,8 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - nightly
-          - beta
+          - 1.51
           - stable
         profile:
           - name: debug
