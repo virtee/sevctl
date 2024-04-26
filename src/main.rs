@@ -24,112 +24,114 @@ use ::sev::{
     Generation,
 };
 use anyhow::{Context, Result};
+use clap::{arg, Parser, Subcommand, ValueEnum};
 use codicon::*;
-use structopt::StructOpt;
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-const AUTHORS: &str = env!("CARGO_PKG_AUTHORS");
-
-#[derive(StructOpt)]
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
 struct Sevctl {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     pub cmd: SevctlCmd,
 
-    #[structopt(short, long, help = "Don't print anything to the console")]
+    #[arg(short, long, default_value_t = false)]
     pub quiet: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(StructOpt)]
-#[structopt(author = AUTHORS, version = VERSION, about = "Utilities for managing the SEV environment")]
+#[derive(Subcommand)]
 enum SevctlCmd {
-    #[structopt(about = "Export the SEV or entire certificate chain")]
+    /// Export the SEV or entire certificate chain
     Export {
-        #[structopt(
-            short,
-            long,
-            help = "Export the entire certificate chain? (SEV + CA chain)"
-        )]
+        /// Export the entire certificate chain? (SEV + CA chain)
+        #[arg(short, long, default_value_t = false)]
         full: bool,
 
-        #[structopt(parse(from_os_str), help = "Certificate chain output file path")]
+        /// Certificate chain output file path
+        #[arg(value_name = "destination", required = true)]
         destination: PathBuf,
     },
 
-    #[structopt(about = "Generate a new self-signed OCA certificate and key")]
+    /// Generate a new self-signed OCA certificate and key
     Generate {
-        #[structopt(parse(from_os_str), help = "OCA certificate output file path")]
+        /// OCA certificate output file path
+        #[arg(value_name = "cert", required = true)]
         cert: PathBuf,
 
-        #[structopt(parse(from_os_str), help = "OCA key output file path")]
+        /// OCA key output file path
+        #[arg(value_name = "key", required = true)]
         key: PathBuf,
     },
 
-    #[structopt(about = "Probe system for SEV support")]
+    /// Probe system for SEV support
     Ok {
-        #[structopt(subcommand)]
+        /// SEV generation
+        #[arg(value_name = "gen")]
         gen: Option<ok::SevGeneration>,
     },
 
-    #[structopt(about = "Take ownership of the SEV platform")]
+    /// Take ownership of the SEV platform
     Provision {
-        #[structopt(parse(from_os_str), help = "Path to the owner's OCA certificate")]
+        /// Path to the owner's OCA certificate.
+        #[arg(value_name = "cert", required = true)]
         cert: PathBuf,
 
-        #[structopt(parse(from_os_str), help = "Path to the owner's OCA private key")]
+        /// Path to the owner's OCA private key.
+        #[arg(value_name = "key", required = true)]
         key: PathBuf,
     },
 
-    #[structopt(about = "Reset the SEV platform state")]
+    /// Reset the SEV platform state
     Reset,
 
-    #[structopt(about = "Rotate PDH")]
+    /// Rotate PDH
     Rotate,
 
-    #[structopt(about = "Generate a SEV launch session")]
+    /// Generate a SEV launch session
     Session {
-        #[structopt(short, long, help = "Name used to identify file names")]
+        /// Name used to identify file names
+        #[arg(short, long, value_name = "name")]
         name: Option<String>,
 
-        #[structopt(
-            parse(from_os_str),
-            help = "Path of the file containing the certificate chain"
-        )]
+        /// Path of the file containing the certificate chain
+        #[arg(value_name = "pdh", required = true)]
         pdh: PathBuf,
 
-        #[structopt(help = "32-bit integer representing the launch policy")]
+        /// 32-bit integer representing the launch policy
+        #[arg(value_name = "policy", required = true)]
         policy: u32,
     },
 
-    #[structopt(about = "Display information about the SEV platform")]
+    /// Display information about the SEV platform
     Show {
-        #[structopt(subcommand)]
+        #[command(subcommand)]
         cmd: show::Show,
     },
 
-    #[structopt(about = "Verify certificate chain")]
+    /// Verify certificate chain
     Verify {
-        #[structopt(long, parse(from_os_str), help = "Read SEV chain from specified file")]
+        /// Read SEV chain from specified file
+        #[arg(long, value_name = "sev")]
         sev: Option<PathBuf>,
 
-        #[structopt(
-            long,
-            parse(from_os_str),
-            help = "Read OCA certificate from specified file"
-        )]
+        /// Read OCA certificate from specified file
+        #[arg(long, value_name = "oca")]
         oca: Option<PathBuf>,
 
-        #[structopt(long, parse(from_os_str), help = "Read CA chain from specified file")]
+        /// Read CA chain from specified file
+        #[arg(long, value_name = "ca")]
         ca: Option<PathBuf>,
     },
 
-    #[structopt(about = "VMSA-related subcommands")]
+    /// VMSA-related subcommands
+    #[command(subcommand)]
     Vmsa(VmsaCmd),
 
-    #[structopt(about = "Measurement subcommands")]
+    /// Measurement subcommands
+    #[command(subcommand)]
     Measurement(measurement::MeasurementCmd),
 
-    #[structopt(about = "Secret subcommands")]
+    /// Secret subcommands
+    #[command(subcommand)]
     Secret(secret::SecretCmd),
 }
 
@@ -231,7 +233,7 @@ fn ca_chain_builtin(chain: &sev::Chain) -> Result<ca::Chain> {
 fn main() -> Result<()> {
     env_logger::init();
 
-    let sevctl = Sevctl::from_args();
+    let sevctl = Sevctl::parse();
     let status = match sevctl.cmd {
         SevctlCmd::Export { full, destination } => export::cmd(full, destination),
         SevctlCmd::Generate { cert, key } => generate::cmd(cert, key),
@@ -276,18 +278,22 @@ mod reset {
 mod show {
     use super::*;
 
-    #[derive(StructOpt)]
+    #[derive(Subcommand)]
     pub enum Show {
-        #[structopt(about = "Show the current platform flags")]
+        /// Show the current platform flags
+        #[command(subcommand)]
         Flags,
 
-        #[structopt(about = "Show the current number of guests")]
+        /// Show the current number of guests
+        #[command(subcommand)]
         Guests,
 
-        #[structopt(about = "Show the platform identifier")]
+        /// Show the platform identifier
+        #[command(subcommand)]
         Identifier,
 
-        #[structopt(about = "Show the platform's firmware version")]
+        /// Show the platform's firmware version
+        #[command(subcommand)]
         Version,
     }
 

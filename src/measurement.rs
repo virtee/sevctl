@@ -4,58 +4,75 @@ use super::*;
 
 use std::path::{Path, PathBuf};
 
-use structopt::StructOpt;
-
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum MeasurementCmd {
     Build(BuildArgs),
 }
 
-#[derive(StructOpt, std::fmt::Debug)]
+#[derive(Parser, std::fmt::Debug)]
 pub struct BuildArgs {
-    #[structopt(long, help = "SEV host API major (int or hex)")]
+    /// SEV host API major (int or hex)
+    #[arg(long, value_name = "api-major")]
     pub api_major: String,
 
-    #[structopt(long, help = "SEV host API minor (int or hex)")]
+    /// SEV host API minor (int or hex)
+    #[arg(long, value_name = "api-minor")]
     pub api_minor: String,
 
-    #[structopt(long, help = "SEV host build ID (int or hex)")]
+    /// SEV host build ID (int or hex)
+    #[arg(long, value_name = "build-id")]
     pub build_id: String,
 
-    #[structopt(long, help = "SEV guest policy (int or hex)")]
+    /// SEV guest policy (int or hex)
+    #[arg(long, value_name = "policy")]
     pub policy: String,
 
-    #[structopt(long, help = "Expected nonce (path or base64)")]
+    /// Expected nonce (path or base64)
+    #[arg(long, value_name = "nonce")]
     pub nonce: Option<String>,
-    #[structopt(
-        long,
-        help = "Extract nonce from output of LAUNCH_MEASURE firmware command, such as reported by qemu query-sev-launch-measure or virsh domlaunchsecinfo (path or base64)"
-    )]
+
+    /// Extract nonce from output of LAUNCH_MEASURE firmware command, such as reported by qemu query-sev-launch-measure or virsh domlaunchsecinfo (path or base64)
+    #[arg(long, value_name = "launch-measure")]
     pub launch_measure_blob: Option<String>,
 
-    #[structopt(long, help = "tik data (path or base64)")]
+    /// tik data (path or base64)
+    #[arg(long, value_name = "tik")]
     pub tik: String,
 
-    #[structopt(long, help = "Launch digest in base64")]
+    /// Launch digest in base64
+    #[arg(long, value_name = "launch-digest")]
     pub launch_digest: Option<String>,
 
-    #[structopt(long, help = "Path to firmware/OVMF binary")]
+    /// Path to firmware/OVMF binary
+    #[arg(long, value_name = "firmware")]
     pub firmware: Option<PathBuf>,
-    #[structopt(long, help = "Path to kernel")]
+
+    /// Path to kernel
+    #[arg(long, value_name = "kernel")]
     pub kernel: Option<PathBuf>,
-    #[structopt(long, help = "Path to initrd")]
+
+    /// Path to initrd
+    #[arg(long, value_name = "initrd")]
     pub initrd: Option<PathBuf>,
-    #[structopt(long, help = "Kernel commandline")]
+
+    /// Kernel commandline
+    #[arg(long, value_name = "cmdline")]
     pub cmdline: Option<String>,
 
-    #[structopt(long, help = "Number of virtual CPUs")]
+    /// Number of virtual CPUs
+    #[arg(long, value_name = "num-cpus")]
     pub num_cpus: Option<u32>,
-    #[structopt(long, help = "path to VMSA state for boot CPU")]
+
+    /// path to VMSA state for boot CPU
+    #[arg(long, value_name = "vmsa-cpu0")]
     pub vmsa_cpu0: Option<PathBuf>,
-    #[structopt(long, help = "path to VMSA state for additional CPUs")]
+
+    /// path to VMSA state for additional CPUs
+    #[arg(long, value_name = "vmsa-cpu1")]
     pub vmsa_cpu1: Option<PathBuf>,
 
-    #[structopt(long, help = "Optionally write binary content to filename")]
+    /// Optionally write binary content to filename
+    #[arg(long, value_name = "outfile")]
     pub outfile: Option<String>,
 }
 

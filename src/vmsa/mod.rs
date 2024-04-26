@@ -21,46 +21,63 @@ use std::{
 
 use uuid::{uuid, Uuid};
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum VmsaCmd {
+    /// Build the VMSA
     Build(BuildUpdateCmdArgs),
+
+    /// Show the VMSA
     Show(VmsaShowCmdArgs),
+
+    /// Update the VMSA
     Update(BuildUpdateCmdArgs),
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct VmsaShowCmdArgs {
-    #[structopt(help = "VMSA binary file to print as JSON")]
+    /// VMSA binary file to print as JSON
+    #[arg(value_name = "filename", required = true)]
     pub filename: String,
 }
 
 // cmdline arguments for the "build" and "update" subcommands.
-#[derive(StructOpt, fmt::Debug)]
+#[derive(Parser, fmt::Debug)]
 pub struct BuildUpdateCmdArgs {
-    #[structopt(help = "File to write VMSA information to")]
+    /// File to write VMSA information to
+    #[arg(value_name = "filename")]
     pub filename: String,
 
-    #[structopt(long, help = "CPU number")]
+    /// CPU number
+    #[arg(long, value_name = "cpu")]
     pub cpu: u64,
 
-    #[structopt(long, help = "CPU family")]
+    /// CPU family
+    #[arg(long, value_name = "family")]
     pub family: Option<u64>,
 
-    #[structopt(long, help = "CPU model")]
+    /// CPU model
+    #[arg(long, value_name = "model")]
     pub model: Option<u64>,
 
-    #[structopt(long, help = "CPU stepping")]
+    /// CPU stepping
+    #[arg(long, value_name = "stepping")]
     pub stepping: Option<u64>,
 
-    #[structopt(long, parse(from_os_str), help = "OVMF firmware path")]
+    /// OVMF firmware path
+    #[arg(long, value_name = "firmware")]
     pub firmware: Option<PathBuf>,
 
-    #[structopt(long, help = "Userspace implementation")]
+    /// Userspace implementation
+    #[arg(long, value_name = "userspace")]
     pub userspace: UserspaceVmm,
 }
 
+#[derive(ValueEnum, Copy, Clone)]
 pub enum UserspaceVmm {
+    /// Qemu VMM
     Qemu,
+
+    /// KRun VMM
     Krun,
 }
 

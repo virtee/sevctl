@@ -25,20 +25,20 @@ bitfield! {
     pub get_vmple, _: 25, 25;
 }
 
-#[derive(StructOpt, PartialEq, Eq)]
+#[derive(ValueEnum, PartialEq, Eq, Copy, Clone)]
 pub enum SevGeneration {
-    #[structopt(about = "Secure Encrypted Virtualization")]
+    /// Secure Encrypted Virtualization
     Sev,
 
-    #[structopt(about = "SEV + Encrypted State")]
+    /// SEV + Encrypted State
     Es,
 
-    #[structopt(about = "SEV + Secure Nested Paging")]
+    /// SEV + Secure Nested Paging
     Snp,
 }
 
 impl SevGeneration {
-    fn to_mask(&self) -> usize {
+    fn to_mask(self) -> usize {
         match self {
             SevGeneration::Sev => SEV_MASK,
             SevGeneration::Es => SEV_MASK | ES_MASK,

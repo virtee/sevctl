@@ -6,45 +6,45 @@ use crate::measurement;
 
 use std::convert::TryFrom;
 
-use structopt::StructOpt;
-
 struct SecretPair {
     uuid: uuid::Uuid,
     secret: Vec<u8>,
 }
 
-#[derive(StructOpt)]
+#[derive(Subcommand)]
 pub enum SecretCmd {
+    /// Build the Secret
     Build(BuildArgs),
 }
 
-#[derive(StructOpt, std::fmt::Debug)]
+#[derive(Parser, std::fmt::Debug)]
 pub struct BuildArgs {
-    #[structopt(long, help = "tik data (path or base64)")]
+    /// tik data (path or base64)
+    #[arg(long, value_name = "tik")]
     pub tik: String,
-    #[structopt(long, help = "tek data (path or base64)")]
+
+    /// tek data (path or base64)
+    #[arg(long, value_name = "tek")]
     pub tek: String,
 
-    #[structopt(
-        long,
-        help = "Output from LAUNCH_MEASURE firmware command (such as via qemu or libvirt), or `sevctl measurement build` (path or base64)"
-    )]
+    /// Output from LAUNCH_MEASURE firmware command (such as via qemu or libvirt), or `sevctl measurement build` (path or base64)
+    #[arg(long, value_name = "launch-measure")]
     pub launch_measure_blob: String,
 
     // Hidden CLI option to make --iv deterministic, for testing
-    #[structopt(long, hidden = true)]
+    #[arg(long, value_name = "iv", hide = true)]
     pub iv: Option<String>,
 
-    #[structopt(
-        long,
-        help = "Secret values to inject. Format is UUID:/path/to/secret.txt",
-        number_of_values = 1
-    )]
+    /// Secret values to inject. Format is UUID:/path/to/secret.txt", number_of_values = 1
+    #[arg(long, value_name = "secret", number_of_values = 1)]
     pub secret: Vec<String>,
 
-    #[structopt(help = "Path to output secret header file")]
+    /// Path to output secret header file
+    #[arg(value_name = "header-file", required = true)]
     header_file: String,
-    #[structopt(help = "Path to output secret payload file")]
+
+    /// Path to output secret payload file
+    #[arg(value_name = "payload-file", required = true)]
     payload_file: String,
 }
 
