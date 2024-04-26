@@ -8,7 +8,7 @@ fn help() {
     let out1 = utils::run_sevctl(&["help"]);
     assert!(out1.contains(" provision "));
 
-    // `sevctl ok help`
-    let out1 = utils::run_sevctl(&["ok", "help"]);
-    assert!(out1.contains(" snp "));
+    // `sevctl ok --help`
+    let out1 = utils::run_sevctl(&["ok", "--help"]);
+    assert!(out1.contains("- snp"));
 }
