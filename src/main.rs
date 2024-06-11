@@ -278,22 +278,18 @@ mod reset {
 mod show {
     use super::*;
 
-    #[derive(Subcommand)]
+    #[derive(Parser)]
     pub enum Show {
         /// Show the current platform flags
-        #[command(subcommand)]
         Flags,
 
         /// Show the current number of guests
-        #[command(subcommand)]
         Guests,
 
         /// Show the platform identifier
-        #[command(subcommand)]
         Identifier,
 
         /// Show the platform's firmware version
-        #[command(subcommand)]
         Version,
     }
 
