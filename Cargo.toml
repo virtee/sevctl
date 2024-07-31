@@ -31,7 +31,7 @@ bitfield = "0.15.0"
 msru = "0.2.0"
 clap = { version = "<4.5", features = [ "derive" ] }
 codicon = "3.0"
-colorful = "0.2.2"
+colorful = "0.3.2"
 libc = "0.2.139"
 base64 = "0.13.0"
 openssl = { version = "0.10", features = ["vendored"] }
