@@ -93,7 +93,8 @@ fn get_iv(arg_iv: Option<String>) -> super::Result<Vec<u8>> {
     } else {
         let mut ivrand = [0u8; 16];
         openssl::rand::rand_bytes(&mut ivrand)?;
-        Ok(Vec::<u8>::try_from(ivrand)?)
+
+        Ok(Vec::<u8>::from(ivrand))
     }
 }
 
