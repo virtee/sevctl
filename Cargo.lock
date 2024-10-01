@@ -856,6 +856,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_core"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
+name = "rdrand"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d92195228612ac8eed47adbc2ed0f04e513a4ccb98175b6f2bd04d963b533655"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "redox_users"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1113,9 +1131,9 @@ dependencies = [
 
 [[package]]
 name = "sev"
-version = "3.2.0"
+version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35156eab65ff1b63432b5a11a06b770e92120033e2831c7dee064865de5dbbbd"
+checksum = "a97bd0b2e2d937951add10c8512a2dacc6ad29b39e5c5f26565a3e443329857d"
 dependencies = [
  "base64 0.22.1",
  "bincode",
@@ -1129,6 +1147,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "openssl",
+ "rdrand",
  "serde",
  "serde-big-array",
  "serde_bytes",
