@@ -12,6 +12,7 @@ use std::{
 
 use ::sev::{certs::sev::sev::Certificate, launch::sev, session};
 
+use anyhow::anyhow;
 use codicon::{Decoder, Encoder};
 
 pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()> {
@@ -25,9 +26,14 @@ pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()>
     let pdh_file = fs::File::open(pdh).context("couldn't open PDH file pointed to by path")?;
     let pdh = Certificate::decode(pdh_file, ()).unwrap();
 
-    let start = session
-        .start_pdh(pdh)
-        .context("could not start session based off of provided certificate chain")?;
+    let start = match session.start_pdh(pdh) {
+        Ok(s) => s,
+        Err(_) => {
+            return Err(anyhow!(
+                "could not start session based off of provided certificate chain"
+            ))
+        }
+    };
 
     let launch_blob = unsafe {
         from_raw_parts(
