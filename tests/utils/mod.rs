@@ -1,4 +1,4 @@
-pub const SEVCTL: &'static str = env!("CARGO_BIN_EXE_sevctl");
+pub const SEVCTL: &str = env!("CARGO_BIN_EXE_sevctl");
 
 pub fn cargo_root_path(base: &str) -> String {
     /*! Take a path relative to the project root, like `tests/data/FOO`,

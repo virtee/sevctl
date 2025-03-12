@@ -25,7 +25,7 @@ struct BuildArgs<'a> {
 }
 
 fn run_build(args: &BuildArgs) -> String {
-    let tik = utils::cargo_root_path(&args.tik);
+    let tik = utils::cargo_root_path(args.tik);
 
     let mut sevctl_args = vec![
         "measurement",
@@ -165,7 +165,7 @@ fn measurement_build() {
         api_minor: "49",
         build_id: "6",
         nonce: None,
-        launch_measure_blob: Some(&expected),
+        launch_measure_blob: Some(expected),
         ..args_firmware
     };
     test_build(expected, args_vmsa);
