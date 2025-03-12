@@ -10,8 +10,8 @@ struct BuildArgs<'a> {
 }
 
 fn run_build(args: &BuildArgs, header_file: &str, payload_file: &str) -> String {
-    let tik = utils::cargo_root_path(&args.tik);
-    let tek = utils::cargo_root_path(&args.tek);
+    let tik = utils::cargo_root_path(args.tik);
+    let tek = utils::cargo_root_path(args.tek);
 
     let mut sevctl_args = vec![
         "secret",
@@ -45,13 +45,13 @@ fn test_build(args: BuildArgs) -> String {
     let payload_tmp = tempfile::NamedTempFile::new().unwrap();
     let header_file = header_tmp.path().to_str().unwrap();
     let payload_file = payload_tmp.path().to_str().unwrap();
-    run_build(&args, &header_file, &payload_file);
+    run_build(&args, header_file, payload_file);
 
     let header = base64::encode(std::fs::read(header_file).unwrap());
     let payload = base64::encode(std::fs::read(payload_file).unwrap());
     let output = format!("header_file:\n{}\npayload_file:\n{}\n", header, payload);
 
-    return output;
+    output
 }
 
 fn test_build_raw(args: BuildArgs) -> (Vec<u8>, Vec<u8>) {
@@ -59,12 +59,12 @@ fn test_build_raw(args: BuildArgs) -> (Vec<u8>, Vec<u8>) {
     let payload_tmp = tempfile::NamedTempFile::new().unwrap();
     let header_file = header_tmp.path().to_str().unwrap();
     let payload_file = payload_tmp.path().to_str().unwrap();
-    run_build(&args, &header_file, &payload_file);
+    run_build(&args, header_file, payload_file);
 
     let header = std::fs::read(header_file).unwrap();
     let payload = std::fs::read(payload_file).unwrap();
 
-    return (header, payload);
+    (header, payload)
 }
 
 #[test]

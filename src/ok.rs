@@ -89,22 +89,17 @@ impl SevGeneration {
         let model = (ext_model << 4) | base_model;
         let family = base_family + ext_family;
 
-        let id = (model, family);
-
-        let naples = (1, 23);
-        let rome = (49, 23);
-        let milan = (1, 25);
-        let genoa = (17, 25);
-
-        if id == naples {
-            return Ok(SevGeneration::Sev);
-        } else if id == rome {
-            return Ok(SevGeneration::Es);
-        } else if id == milan || id == genoa {
-            return Ok(SevGeneration::Snp);
+        match family {
+            // First or Second Gen EPYC
+            0x17 => match model {
+                0x1..=0x30 => Ok(SevGeneration::Sev),
+                0x31..=0x3F => Ok(SevGeneration::Es),
+                _ => Err(anyhow!("processor is not of a known SEV generation")),
+            },
+            // Third, Fourth, or Fifth Gen EPYC
+            0x19 | 0x1A => Ok(SevGeneration::Snp),
+            _ => Err(anyhow!("processor is not of a known SEV generation")),
         }
-
-        Err(anyhow!("processor is not of a known SEV generation"))
     }
 }
 

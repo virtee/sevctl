@@ -31,7 +31,7 @@ COMMANDS
 
         This command exports the SEV certificate chain to the provided path.
         Note that the AMD SEV certificate chain is different from the SEV and
-        SEV-ES (Naples, Rome) to SNP (Milan, Genoa) architectures. This command
+        SEV-ES (Naples, Rome) to SNP (Milan, Genoa, Turin) architectures. This command
         currently only supports the SEV and SEV-ES certificate format.
 
   options:
