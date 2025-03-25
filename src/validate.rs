@@ -1,24 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
-use sev::certs::sev::{sev::Certificate, Verifiable};
+use sev::certs::sev::{sev::Chain, Verifiable};
 use sev::firmware::host::LegacyAttestationReport;
 
+use anyhow::{Context, Result};
 use std::{fs, path::PathBuf};
 
-static PEK_NAME: &str = "pek.cert";
-static AR_NAME: &str = "attestation_report.bin";
+use codicon::*;
 
 /// Validates the provided Platform Endorsement Key signed the specified Attestation Report.
-/// This assumes the PEK name to be `pek.cert` and the report name to be `attestation_report.bin`.
-pub fn cmd(mut pek: PathBuf, mut report: PathBuf) -> Result<(), anyhow::Error> {
-    if pek.exists() && pek.is_dir() {
-        pek = pek.join(PEK_NAME);
-    }
-
-    if report.exists() && report.is_dir() {
-        report = report.join(AR_NAME);
-    }
-
+pub fn cmd(chain_path: PathBuf, report: PathBuf) -> Result<(), anyhow::Error> {
     // Verify the binary being provided is of the correct size.
     if fs::metadata(report.clone())?.len() as usize
         != std::mem::size_of::<LegacyAttestationReport>()
@@ -31,11 +22,10 @@ pub fn cmd(mut pek: PathBuf, mut report: PathBuf) -> Result<(), anyhow::Error> {
 
     buf.clear();
 
-    buf = fs::read(pek)?;
-    let pek_cert: Certificate = bincode::deserialize(&buf)?;
-
-    drop(buf);
+    let mut chainf =
+        fs::File::open(chain_path).context("unable to open SEV certificate chain file")?;
+    let chain = Chain::decode(&mut chainf, ()).context("unable to decode chain")?;
 
     // Verify using the implementation
-    Ok((&pek_cert, &legacy_report).verify()?)
+    Ok((&chain.pek, &legacy_report).verify()?)
 }
