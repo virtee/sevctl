@@ -130,12 +130,12 @@ enum SevctlCmd {
 
     /// Validate subcommands
     Validate {
-        /// PEK directory path
-        #[arg(short, long = "pek", required = true)]
-        pek_path: PathBuf,
+        /// Path to the SEV cert chain, can be obtained by the `export` subcommand
+        #[arg(value_name = "sev-cert-chain", required = true)]
+        chain_path: PathBuf,
 
-        /// Attestation Report directory path
-        #[arg(short, long = "attestation-report", required = true)]
+        /// Path to the attestation report binary file
+        #[arg(value_name = "attestation-report", required = true)]
         ar_path: PathBuf,
     },
 
@@ -266,7 +266,10 @@ fn main() -> Result<()> {
         SevctlCmd::Session { name, pdh, policy } => session::cmd(name, pdh, policy),
         SevctlCmd::Show { cmd } => show::cmd(cmd),
         SevctlCmd::Verify { sev, oca, ca } => verify::cmd(sevctl.quiet, sev, oca, ca),
-        SevctlCmd::Validate { pek_path, ar_path } => validate::cmd(pek_path, ar_path),
+        SevctlCmd::Validate {
+            chain_path,
+            ar_path,
+        } => validate::cmd(chain_path, ar_path),
         SevctlCmd::Vmsa(option) => match option {
             VmsaCmd::Build(args) => vmsa::build::cmd(args),
             VmsaCmd::Show(args) => vmsa::show::cmd(args),
