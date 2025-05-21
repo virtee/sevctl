@@ -28,7 +28,7 @@ is-it-maintained-issue-resolution = { repository = "virtee/sevctl" }
 is-it-maintained-open-issues = { repository = "virtee/sevctl" }
 
 [dependencies]
-sev = { version = "5.0.0", default-features = false, features = [
+sev = { version = "6.0.0", default-features = false, features = [
     "sev",
     "openssl",
 ] }
