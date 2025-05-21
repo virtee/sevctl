@@ -335,7 +335,7 @@ mod show {
                 {
                     println!(
                         "{}",
-                        match status.flags & *f {
+                        match status.flags.clone() & f.clone() {
                             PlatformStatusFlags::ENCRYPTED_STATE => "es",
                             PlatformStatusFlags::OWNED => "owned",
                             _ => continue,
