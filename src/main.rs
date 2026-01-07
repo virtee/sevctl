@@ -46,6 +46,20 @@ struct Sevctl {
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 enum SevctlCmd {
+    /// Add the cek certificate to a partial certificate chain returned by the PSP
+    Addcek {
+        /// Read SEV partial chain from specified file
+        #[arg(short, long, value_name = "crt", required = true)]
+        crt: PathBuf,
+
+        /// Id of the processor to get the CEK
+        #[arg(short, long, value_name = "id", required = true)]
+        id: String,
+
+        /// Output file
+        #[arg(long, value_name = "dst")]
+        dst: Option<PathBuf>,
+    },
     /// Export the SEV or entire certificate chain
     Export {
         /// Export the entire certificate chain? (SEV + CA chain)
@@ -55,6 +69,13 @@ enum SevctlCmd {
         /// Certificate chain output file path
         #[arg(value_name = "destination", required = true)]
         destination: PathBuf,
+    },
+
+    /// Get latest firmware
+    Firmware {
+        /// firmware output file path
+        #[arg(short, long, value_name = "out", required = false)]
+        out: Option<PathBuf>,
     },
 
     /// Generate a new self-signed OCA certificate and key
@@ -84,6 +105,13 @@ enum SevctlCmd {
         /// Path to the owner's OCA private key.
         #[arg(value_name = "key", required = true)]
         key: PathBuf,
+        /// Path to the PEK input file.
+        #[arg(short, long, value_name = "in_pek", required = false)]
+        in_pek: Option<PathBuf>,
+
+        /// Path to PEK output file.
+        #[arg(short, long, value_name = "out_pek", required = false)]
+        out_pek: Option<PathBuf>,
     },
 
     /// Reset the SEV platform state
@@ -152,7 +180,7 @@ enum SevctlCmd {
     Secret(secret::SecretCmd),
 }
 
-async fn download(url: &str, usage: Usage) -> Result<Certificate> {
+async fn download(url: &str) -> Result<Cursor<Vec<u8>>> {
     let mut err_stack: Vec<anyhow::Error> = vec![];
 
     for attempt in 1..4 {
@@ -171,9 +199,7 @@ async fn download(url: &str, usage: Usage) -> Result<Certificate> {
             }
             Ok(rsp) => match rsp.bytes().await {
                 Ok(body) => {
-                    let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
-                    return Certificate::decode(out, ())
-                        .context(format!("failed to decode {} certificate", usage));
+                    return Ok(Cursor::new(body.into_iter().collect::<Vec<u8>>()));
                 }
                 Err(e) => return Err(anyhow::Error::new(e).context("failed to read response body")),
             },
@@ -197,13 +223,25 @@ async fn download(url: &str, usage: Usage) -> Result<Certificate> {
             .context(format!("final http request failed: {}", e))
     })?;
 
+    if !(rsp).status().is_success() {
+        return Err(anyhow::anyhow!(format!(
+            "Http request {}",
+            rsp.status().as_u16()
+        )));
+    }
+
     match rsp.bytes().await {
         Ok(body) => {
-            let out = Cursor::new(body.into_iter().collect::<Vec<u8>>());
-            Certificate::decode(out, ()).context(format!("failed to decode {} certificate", usage))
+            return Ok(Cursor::new(body.into_iter().collect::<Vec<u8>>()));
         }
         Err(e) => Err(anyhow::Error::new(e).context("failed to read response body")),
     }
+}
+
+fn download_certificate(url: &str, usage: Usage) -> Result<Certificate> {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let out = rt.block_on(download(url))?;
+    return Certificate::decode(out, ()).context(format!("failed to decode {} certificate", usage));
 }
 
 fn firmware() -> Result<Firmware> {
@@ -231,8 +269,7 @@ fn chain() -> Result<Chain> {
         .context("error fetching identifier")?;
     let url = format!("{}/{}", CEK_SVC, id);
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    chain.cek = rt.block_on(download(&url, Usage::CEK))?;
+    chain.cek = download_certificate(&url, Usage::CEK)?;
 
     Ok(chain)
 }
@@ -251,13 +288,20 @@ fn main() -> Result<()> {
 
     let sevctl = Sevctl::parse();
     let status = match sevctl.cmd {
+        SevctlCmd::Addcek { crt, id, dst } => addcek::cmd(crt, id, dst),
         SevctlCmd::Export { full, destination } => export::cmd(full, destination),
+        SevctlCmd::Firmware { out } => firmware::cmd(out),
         SevctlCmd::Generate { cert, key } => generate::cmd(cert, key),
         SevctlCmd::Ok { gen } => ok::cmd(gen, sevctl.quiet),
         SevctlCmd::Measurement(option) => match option {
             measurement::MeasurementCmd::Build(args) => measurement::build_cmd(args),
         },
-        SevctlCmd::Provision { cert, key } => provision::cmd(cert, key),
+        SevctlCmd::Provision {
+            cert,
+            key,
+            in_pek,
+            out_pek,
+        } => provision::cmd(cert, key, in_pek, out_pek),
         SevctlCmd::Reset => reset::cmd(),
         SevctlCmd::Rotate => rotate::cmd(),
         SevctlCmd::Secret(option) => match option {
@@ -526,8 +570,14 @@ mod provision {
 
     use ::sev::certs::sev::{PrivateKey, Signer};
 
-    pub fn cmd(oca_path: PathBuf, prv_key_path: PathBuf) -> Result<()> {
-        let mut fw = firmware()?;
+    pub fn cmd(
+        oca_path: PathBuf,
+        prv_key_path: PathBuf,
+        in_pek: Option<PathBuf>,
+        out_pek: Option<PathBuf>,
+    ) -> Result<()> {
+        let mut out = Cursor::new(Vec::new());
+
         let cert = File::open(oca_path.clone())
             .context(format!("failed to open {}", oca_path.display()))
             .and_then(|mut f| Certificate::decode(&mut f, ()).context("failed to decode OCA"))?;
@@ -539,17 +589,136 @@ mod provision {
                     .context("failed to decode OCA private key")
             })?;
 
-        let mut pek = fw
-            .pek_csr()
-            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
-            .context("cross signing request failed")?;
+        let mut pek = match in_pek {
+            None => {
+                let mut fw = firmware()?;
+                fw.pek_csr()
+                    .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
+                    .context("cross signing request failed")?
+            }
+            Some(f) => {
+                let mut file =
+                    File::open(f.clone()).context(format!("failed to open {}", f.display()))?;
+                Certificate::decode(&mut file, ()).context("Unable to decode certificate")?
+            }
+        };
+
         prv_key
             .sign(&mut pek)
             .context("failed to sign PEK with OCA private key")?;
-        fw.pek_cert_import(&pek, &cert)
-            .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
-            .context("failed to import the newly-signed PEK")?;
+
+        match out_pek {
+            None => {
+                let mut fw = firmware()?;
+                fw.pek_cert_import(&pek, &cert)
+                    .map_err(|e| anyhow::anyhow!(format!("{:?}", e)))
+                    .context("failed to import the newly-signed PEK")?;
+            }
+            Some(f) => {
+                let mut file =
+                    File::create(f.clone()).context(format!("failed to open {}", f.display()))?;
+                pek.encode(&mut out, ())
+                    .context("Failed to write pek to output file")?;
+                file.write_all(&out.into_inner())
+                    .context("unable to write output file")?;
+            }
+        };
 
         Ok(())
+    }
+}
+
+mod addcek {
+
+    use std::convert::TryFrom;
+
+    use super::*;
+
+    const CEK_SVC: &str = "https://kdsintf.amd.com/cek/id";
+
+    pub fn cmd(crt: PathBuf, id: String, dst: Option<PathBuf>) -> Result<()> {
+        let mut chain = sev_chain(crt)?;
+        let mut out = Cursor::new(Vec::new());
+
+        let url = format!("{}/{}", CEK_SVC, id);
+        let dst_path: PathBuf = match dst {
+            None => PathBuf::try_from("pdh.bin")?,
+            Some(f) => f,
+        };
+
+        chain.cek = download_certificate(&url, Usage::CEK)?;
+
+        chain
+            .encode(&mut out, ())
+            .context("certificate chain encoding failed")?;
+
+        let mut file = File::create(dst_path).context("unable to create output file")?;
+        file.write_all(&out.into_inner())
+            .context("unable to write output file")?;
+
+        Ok(())
+    }
+
+    fn sev_chain(filename: PathBuf) -> Result<Chain> {
+        let mut file = File::open(filename).context("unable to open SEV certificate chain file")?;
+
+        Chain::decode(&mut file, ()).context("unable to decode chain")
+    }
+}
+
+mod firmware {
+    use super::*;
+
+    use proc_cpuinfo::CpuInfo;
+
+    const REPO: &str =
+        "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/amd/";
+
+    pub fn cmd(dst: Option<PathBuf>) -> Result<()> {
+        let cpu = CpuInfo::read()?;
+        let cpu_info = cpu.cpu(0).unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let names = [
+            //specific model name
+            format!(
+                "amd_sev_fam{:x}h_model{:x}h.sbin",
+                cpu_info.cpu_family().unwrap(),
+                cpu_info.model().unwrap()
+            ),
+            // high byte specific model
+            format!(
+                "amd_sev_fam{:x}h_model{:x}xh.sbin",
+                cpu_info.cpu_family().unwrap(),
+                cpu_info.model().unwrap() / 16
+            ),
+            //generic model
+            format!("sev.fw"),
+        ];
+
+        for name in names.iter() {
+            match rt.block_on(download(&format!("{}/{}", REPO, name))) {
+                Ok(out) => {
+                    return save_firmware(out, name, dst);
+                }
+                Err(_err) => {
+                    println!("Could not find firmware for {}", name);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn save_firmware(out: Cursor<Vec<u8>>, name: &String, dst: Option<PathBuf>) -> Result<()> {
+        println!("Find firmware version {}", name);
+        let mut file = File::create(match dst {
+            Some(dst_file) => dst_file,
+            None => PathBuf::from(name),
+        }).context("unable to create output file")?;
+
+        file.write_all(&out.into_inner())
+            .context("unable to write output file")?;
+        return Ok(());
     }
 }

@@ -51,6 +51,7 @@ env_logger = "0.8.4"
 proc-macro2 = "1.0.60"
 reqwest = "0.12.4"
 tokio = { version = "1.29.1", features = ["rt-multi-thread"] }
+proc-cpuinfo = "0.2.0"
 
 [dev-dependencies]
 tempfile = "3.5.0"
