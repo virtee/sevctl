@@ -6,6 +6,8 @@ use crate::measurement;
 
 use std::convert::TryFrom;
 
+use base64::engine::{general_purpose::STANDARD, Engine};
+
 struct SecretPair {
     uuid: uuid::Uuid,
     secret: Vec<u8>,
@@ -89,7 +91,9 @@ fn parse_secrets(secrets: Vec<String>) -> super::Result<Vec<SecretPair>> {
 /* Read --iv from command line, or generate it */
 fn get_iv(arg_iv: Option<String>) -> super::Result<Vec<u8>> {
     if let Some(iv_b64) = arg_iv {
-        base64::decode(iv_b64).context("failed to base64 decode --iv")
+        STANDARD
+            .decode(iv_b64)
+            .context("failed to base64 decode --iv")
     } else {
         let mut ivrand = [0u8; 16];
         openssl::rand::rand_bytes(&mut ivrand)?;
@@ -120,7 +124,10 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
         Some(&iv),
         &secrets_table,
     )?;
-    log::debug!("secrets cipher base64: {}", base64::encode(&secrets_cipher));
+    log::debug!(
+        "secrets cipher base64: {}",
+        STANDARD.encode(&secrets_cipher)
+    );
 
     // AMD Secure Encrypted Virtualization API , section 6.6
     let mut msg: Vec<u8> = Vec::new();
@@ -132,7 +139,7 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     msg.extend(&table_len.to_le_bytes());
     msg.extend(&secrets_cipher);
     msg.extend(&measurement);
-    log::debug!("payload msg base64: {}", base64::encode(&msg));
+    log::debug!("payload msg base64: {}", STANDARD.encode(&msg));
 
     // Sign message with tik
     let key = openssl::pkey::PKey::hmac(&tik)?;
@@ -144,7 +151,7 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     header.extend(&flags.to_le_bytes());
     header.extend(iv);
     header.extend(sig.sign_to_vec()?);
-    log::debug!("header base64: {}", base64::encode(&header));
+    log::debug!("header base64: {}", STANDARD.encode(&header));
 
     std::fs::write(&args.header_file, header).context(format!(
         "failed to write to header to {}",
