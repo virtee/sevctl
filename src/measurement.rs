@@ -4,6 +4,8 @@ use super::*;
 
 use std::path::{Path, PathBuf};
 
+use base64::engine::{general_purpose::STANDARD, Engine};
+
 #[derive(Subcommand)]
 pub enum MeasurementCmd {
     Build(BuildArgs),
@@ -210,7 +212,9 @@ fn build_cpu_state(args: &BuildArgs, policy: &u32) -> super::Result<Vec<u8>> {
 
 fn build_digest(args: &BuildArgs, policy: &u32) -> super::Result<Vec<u8>> {
     if let Some(ld) = &args.launch_digest {
-        return base64::decode(ld).context("failed to base64 decode --launch-digest");
+        return STANDARD
+            .decode(ld)
+            .context("failed to base64 decode --launch-digest");
     }
 
     if args.firmware.is_none() {
@@ -251,12 +255,14 @@ pub fn parse_base64_or_path(argname: &str, val: &str) -> super::Result<Vec<u8>> 
     let result = if std::fs::metadata(val).is_ok() {
         std::fs::read(val).context(format!("reading path {}={} failed", argname, val))
     } else {
-        base64::decode(val).context(format!("failed to base64 decode {}={}", argname, val))
+        STANDARD
+            .decode(val)
+            .context(format!("failed to base64 decode {}={}", argname, val))
     };
 
     match result {
         Ok(v) => {
-            log::debug!("{} base64: {}", argname, base64::encode(&v));
+            log::debug!("{} base64: {}", argname, STANDARD.encode(&v));
             Ok(v)
         }
         Err(e) => Err(e),
@@ -298,23 +304,23 @@ pub fn build_cmd(args: BuildArgs) -> super::Result<()> {
     data.extend(digest);
     data.extend(&nonce);
 
-    log::debug!("Raw measurement: {}", base64::encode(&data));
+    log::debug!("Raw measurement: {}", STANDARD.encode(&data));
 
     let key = openssl::pkey::PKey::hmac(&tik)?;
     let mut sig = openssl::sign::Signer::new(openssl::hash::MessageDigest::sha256(), &key)?;
 
     sig.update(&data[..])?;
     let mut out = sig.sign_to_vec()?;
-    log::debug!("Signed measurement: {}", base64::encode(&out));
+    log::debug!("Signed measurement: {}", STANDARD.encode(&out));
     out.extend(&nonce);
-    log::debug!("Measurement + nonce: {}", base64::encode(&out));
+    log::debug!("Measurement + nonce: {}", STANDARD.encode(&out));
 
     if let Some(outfile) = &args.outfile {
         std::fs::write(outfile, &out)
             .context(format!("failed to write to --outfile={}", outfile))?;
         println!("Wrote outfile: {}", outfile);
     } else {
-        println!("{}", base64::encode(out));
+        println!("{}", STANDARD.encode(out));
     }
 
     Ok(())

@@ -13,6 +13,7 @@ use std::{
 use ::sev::{certs::sev::sev::Certificate, launch::sev, session};
 
 use anyhow::anyhow;
+use base64::engine::{general_purpose::STANDARD, Engine};
 use codicon::{Decoder, Encoder};
 
 pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()> {
@@ -41,7 +42,7 @@ pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()>
             size_of::<sev::Session>(),
         )
     };
-    let launch_blob = base64::encode(launch_blob);
+    let launch_blob = STANDARD.encode(launch_blob);
 
     let godh = unsafe {
         from_raw_parts(
@@ -49,7 +50,7 @@ pub fn cmd(name: Option<String>, pdh: PathBuf, policy: u32) -> super::Result<()>
             size_of::<Certificate>(),
         )
     };
-    let godh = base64::encode(godh);
+    let godh = STANDARD.encode(godh);
 
     let mut tik_file = fs::File::create(tik_fname).context("TIK file could not be created")?;
     let mut tek_file = fs::File::create(tek_fname).context("TEK file could not be created")?;
