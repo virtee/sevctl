@@ -143,12 +143,6 @@ dependencies = [
 
 [[package]]
 name = "bitfield"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c821a6e124197eb56d907ccc2188eab1038fb919c914f47976e64dd8dbc855d1"
-
-[[package]]
-name = "bitfield"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db1bcd90f88eabbf0cadbfb87a45bceeaebcd3b4bc9e43da379cd2ef0162590d"
@@ -1301,7 +1295,7 @@ checksum = "492a7043c77be9a4997a62e2426ea084849c73660efd402f1a33fea0ee75ebb4"
 dependencies = [
  "base64 0.22.1",
  "bincode",
- "bitfield 0.19.1",
+ "bitfield",
  "bitflags",
  "byteorder",
  "codicon",
@@ -1326,7 +1320,7 @@ dependencies = [
  "anyhow",
  "base64 0.13.1",
  "bincode",
- "bitfield 0.15.0",
+ "bitfield",
  "clap",
  "codicon",
  "colorful",
